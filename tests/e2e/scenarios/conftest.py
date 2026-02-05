@@ -17,6 +17,24 @@ from helpers.fixtures import (
 )
 
 
+# ============================================================
+# Pytest Markers Configuration
+# ============================================================
+
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line("markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')")
+    config.addinivalue_line("markers", "chaos: tests that require network chaos injection (tc/netem)")
+    config.addinivalue_line("markers", "performance: performance benchmark tests")
+    config.addinivalue_line("markers", "security: security and adversarial tests")
+    config.addinivalue_line("markers", "cli: CLI tool integration tests")
+    config.addinivalue_line("markers", "concurrent: concurrent operations tests")
+    config.addinivalue_line("markers", "advanced: advanced features tests")
+    config.addinivalue_line("markers", "topology_chain: tests requiring chain topology (A → T1 → T2 → D)")
+    config.addinivalue_line("markers", "topology_ring: tests requiring ring topology (redundant paths)")
+    config.addinivalue_line("markers", "topology_mesh: tests requiring mesh topology (5 nodes)")
+
+
 def _check_container_running(container: str) -> bool:
     """Check if a container is running."""
     result = subprocess.run(

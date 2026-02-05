@@ -1,0 +1,220 @@
+# Mesh topology: 5 nodes fully connected via transport
+# Tests optimal path discovery and announce flooding limits
+
+services:
+  # Central transport hub
+  transport:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-transport
+    hostname: transport
+    volumes:
+      - ./configs/transport/config:/root/.reticulum/config:ro
+      - transport-storage:/root/.reticulum/storage
+    networks:
+      rns-e2e:
+        ipv4_address: 172.28.0.10
+    healthcheck:
+      test: ["CMD", "rnstatus"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 3s
+
+  node-a:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-node-a
+    hostname: node-a
+    volumes:
+      - ./configs/node-a/config:/root/.reticulum/config:ro
+      - node-a-storage:/root/.reticulum/storage
+    networks:
+      rns-e2e:
+        ipv4_address: 172.28.0.11
+    depends_on:
+      transport:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "rnstatus"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 3s
+
+  node-b:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-node-b
+    hostname: node-b
+    volumes:
+      - node-b-storage:/root/.reticulum/storage
+    networks:
+      rns-e2e:
+        ipv4_address: 172.28.0.13
+    depends_on:
+      transport:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "mkdir -p /root/.reticulum && cat > /root/.reticulum/config <<EOF
+      [reticulum]
+        enable_transport = no
+      [logging]
+        loglevel = 4
+      [interfaces]
+        [[TCP to Transport]]
+          type = TCPClientInterface
+          enabled = yes
+          target_host = transport
+          target_port = 4242
+      EOF
+      exec rnsd -v"
+    healthcheck:
+      test: ["CMD", "rnstatus"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 3s
+
+  node-c:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-node-c
+    hostname: node-c
+    volumes:
+      - ./configs/node-c/config:/root/.reticulum/config:ro
+      - node-c-storage:/root/.reticulum/storage
+    networks:
+      rns-e2e:
+        ipv4_address: 172.28.0.12
+    depends_on:
+      transport:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "rnstatus"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 3s
+
+  node-d:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-node-d
+    hostname: node-d
+    volumes:
+      - node-d-storage:/root/.reticulum/storage
+    networks:
+      rns-e2e:
+        ipv4_address: 172.28.0.14
+    depends_on:
+      transport:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "mkdir -p /root/.reticulum && cat > /root/.reticulum/config <<EOF
+      [reticulum]
+        enable_transport = no
+      [logging]
+        loglevel = 4
+      [interfaces]
+        [[TCP to Transport]]
+          type = TCPClientInterface
+          enabled = yes
+          target_host = transport
+          target_port = 4242
+      EOF
+      exec rnsd -v"
+    healthcheck:
+      test: ["CMD", "rnstatus"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 3s
+
+  node-e:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-node-e
+    hostname: node-e
+    volumes:
+      - node-e-storage:/root/.reticulum/storage
+    networks:
+      rns-e2e:
+        ipv4_address: 172.28.0.17
+    depends_on:
+      transport:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "mkdir -p /root/.reticulum && cat > /root/.reticulum/config <<EOF
+      [reticulum]
+        enable_transport = no
+      [logging]
+        loglevel = 4
+      [interfaces]
+        [[TCP to Transport]]
+          type = TCPClientInterface
+          enabled = yes
+          target_host = transport
+          target_port = 4242
+      EOF
+      exec rnsd -v"
+    healthcheck:
+      test: ["CMD", "rnstatus"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 3s
+
+  test-runner:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-test-runner
+    volumes:
+      - ../../../:/app:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./results:/results
+    networks:
+      - rns-e2e
+    depends_on:
+      node-a:
+        condition: service_healthy
+      node-b:
+        condition: service_healthy
+      node-c:
+        condition: service_healthy
+      node-d:
+        condition: service_healthy
+      node-e:
+        condition: service_healthy
+    environment:
+      - TRANSPORT_HOST=transport
+      - NODE_A_HOST=node-a
+      - NODE_B_HOST=node-b
+      - NODE_C_HOST=node-c
+      - NODE_D_HOST=node-d
+      - NODE_E_HOST=node-e
+      - RESULTS_DIR=/results
+      - TOPOLOGY=mesh
+    entrypoint: ["python", "-m", "pytest", "tests/e2e/scenarios/", "-v", "--tb=short", "-m", "topology_mesh"]
+
+networks:
+  rns-e2e:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  transport-storage:
+  node-a-storage:
+  node-b-storage:
+  node-c-storage:
+  node-d-storage:
+  node-e-storage:

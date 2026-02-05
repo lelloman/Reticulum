@@ -1,0 +1,165 @@
+# Ring topology: A ↔ T1 ↔ C ↔ T2 ↔ A (redundant paths)
+# Tests alternate path selection and failover
+
+services:
+  transport:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-transport
+    hostname: transport
+    volumes:
+      - ./configs/transport/config:/root/.reticulum/config:ro
+      - transport-storage:/root/.reticulum/storage
+    networks:
+      rns-e2e:
+        ipv4_address: 172.28.0.10
+    healthcheck:
+      test: ["CMD", "rnstatus"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 3s
+
+  transport-2:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-transport-2
+    hostname: transport-2
+    volumes:
+      - ./configs/transport-2/config:/root/.reticulum/config:ro
+      - transport-2-storage:/root/.reticulum/storage
+    networks:
+      rns-e2e:
+        ipv4_address: 172.28.0.15
+    healthcheck:
+      test: ["CMD", "rnstatus"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 3s
+
+  # Node A connects to both transports (ring position 1)
+  node-a:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-node-a
+    hostname: node-a
+    volumes:
+      - node-a-storage:/root/.reticulum/storage
+    networks:
+      rns-e2e:
+        ipv4_address: 172.28.0.11
+    depends_on:
+      transport:
+        condition: service_healthy
+      transport-2:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "mkdir -p /root/.reticulum && cat > /root/.reticulum/config <<EOF
+      [reticulum]
+        enable_transport = no
+      [logging]
+        loglevel = 4
+      [interfaces]
+        [[TCP to T1]]
+          type = TCPClientInterface
+          enabled = yes
+          target_host = transport
+          target_port = 4242
+        [[TCP to T2]]
+          type = TCPClientInterface
+          enabled = yes
+          target_host = transport-2
+          target_port = 4242
+      EOF
+      exec rnsd -v"
+    healthcheck:
+      test: ["CMD", "rnstatus"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 3s
+
+  # Node C connects to both transports (ring position 2, opposite A)
+  node-c:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-node-c
+    hostname: node-c
+    volumes:
+      - node-c-storage:/root/.reticulum/storage
+    networks:
+      rns-e2e:
+        ipv4_address: 172.28.0.12
+    depends_on:
+      transport:
+        condition: service_healthy
+      transport-2:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "mkdir -p /root/.reticulum && cat > /root/.reticulum/config <<EOF
+      [reticulum]
+        enable_transport = no
+      [logging]
+        loglevel = 4
+      [interfaces]
+        [[TCP to T1]]
+          type = TCPClientInterface
+          enabled = yes
+          target_host = transport
+          target_port = 4242
+        [[TCP to T2]]
+          type = TCPClientInterface
+          enabled = yes
+          target_host = transport-2
+          target_port = 4242
+      EOF
+      exec rnsd -v"
+    healthcheck:
+      test: ["CMD", "rnstatus"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 3s
+
+  test-runner:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-test-runner
+    volumes:
+      - ../../../:/app:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./results:/results
+    networks:
+      - rns-e2e
+    depends_on:
+      node-a:
+        condition: service_healthy
+      node-c:
+        condition: service_healthy
+    environment:
+      - TRANSPORT_HOST=transport
+      - TRANSPORT_2_HOST=transport-2
+      - NODE_A_HOST=node-a
+      - NODE_C_HOST=node-c
+      - RESULTS_DIR=/results
+      - TOPOLOGY=ring
+    entrypoint: ["python", "-m", "pytest", "tests/e2e/scenarios/", "-v", "--tb=short", "-m", "topology_ring"]
+
+networks:
+  rns-e2e:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  transport-storage:
+  transport-2-storage:
+  node-a-storage:
+  node-c-storage:

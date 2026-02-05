@@ -404,3 +404,259 @@ class NodeInterface:
             "destination_hash": destination_hash,
             "timeout": timeout,
         }, timeout=int(timeout) + 5)
+
+    # ========== CLI Tool Methods ==========
+
+    def run_cli(
+        self,
+        command: str,
+        cli_args: Optional[list] = None,
+        timeout: int = 30,
+    ) -> dict:
+        """
+        Execute an RNS CLI command on this node.
+
+        Args:
+            command: CLI command name (rnstatus, rnpath, rnprobe, rncp, rnid, rnx, rnir)
+            cli_args: List of command-line arguments
+            timeout: Command timeout in seconds
+
+        Returns:
+            dict with returncode, stdout, stderr, success
+        """
+        return exec_on_node(self.container, "run_cli", {
+            "command": command,
+            "cli_args": cli_args or [],
+            "timeout": timeout,
+        }, timeout=timeout + 5)
+
+    def rnstatus(self, cli_args: Optional[list] = None, timeout: int = 30) -> dict:
+        """Run rnstatus command."""
+        return self.run_cli("rnstatus", cli_args or [], timeout)
+
+    def rnpath(self, cli_args: Optional[list] = None, timeout: int = 30) -> dict:
+        """Run rnpath command."""
+        return self.run_cli("rnpath", cli_args or [], timeout)
+
+    def rnprobe(self, destination_hash: str, timeout: int = 30) -> dict:
+        """
+        Run rnprobe command to probe a destination.
+
+        Args:
+            destination_hash: Hex-encoded destination hash to probe
+            timeout: Command timeout
+        """
+        return self.run_cli("rnprobe", [destination_hash], timeout)
+
+    def rnid(self, cli_args: Optional[list] = None, timeout: int = 30) -> dict:
+        """Run rnid command."""
+        return self.run_cli("rnid", cli_args or [], timeout)
+
+    def rnir(self, cli_args: Optional[list] = None, timeout: int = 30) -> dict:
+        """Run rnir command."""
+        return self.run_cli("rnir", cli_args or [], timeout)
+
+    # ========== File Operations ==========
+
+    def create_file(self, path: str, content: bytes, timeout: int = 10) -> dict:
+        """
+        Create a file in the container.
+
+        Args:
+            path: Absolute path for the file
+            content: File contents (bytes or str)
+
+        Returns:
+            dict with success status
+        """
+        if isinstance(content, str):
+            content = content.encode("utf-8")
+
+        # Use base64 to safely transfer binary content
+        import base64
+        content_b64 = base64.b64encode(content).decode("ascii")
+
+        cmd = [
+            "docker", "exec", self.container,
+            "python", "-c",
+            f"import base64; open('{path}', 'wb').write(base64.b64decode('{content_b64}'))"
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+
+        return {
+            "success": result.returncode == 0,
+            "path": path,
+            "error": result.stderr if result.returncode != 0 else None,
+        }
+
+    def read_file(self, path: str, timeout: int = 10) -> dict:
+        """
+        Read a file from the container.
+
+        Args:
+            path: Absolute path to the file
+
+        Returns:
+            dict with content (bytes as hex), success status
+        """
+        cmd = [
+            "docker", "exec", self.container,
+            "python", "-c",
+            f"import sys; data = open('{path}', 'rb').read(); print(data.hex())"
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+
+        if result.returncode == 0:
+            content_hex = result.stdout.strip()
+            return {
+                "success": True,
+                "content_hex": content_hex,
+                "content": bytes.fromhex(content_hex),
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.stderr,
+            }
+
+    def delete_file(self, path: str, timeout: int = 10) -> dict:
+        """
+        Delete a file from the container.
+
+        Args:
+            path: Absolute path to the file
+
+        Returns:
+            dict with success status
+        """
+        cmd = [
+            "docker", "exec", self.container,
+            "python", "-c",
+            f"import os; os.remove('{path}')"
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+
+        return {
+            "success": result.returncode == 0,
+            "error": result.stderr if result.returncode != 0 else None,
+        }
+
+    def file_exists(self, path: str, timeout: int = 10) -> bool:
+        """Check if a file exists in the container."""
+        cmd = [
+            "docker", "exec", self.container,
+            "python", "-c",
+            f"import os; exit(0 if os.path.exists('{path}') else 1)"
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return result.returncode == 0
+
+    # ========== Daemon Control Methods ==========
+
+    def restart_rnsd(self, timeout: int = 30) -> dict:
+        """
+        Restart the rnsd daemon on this node.
+
+        Returns:
+            dict with success status
+        """
+        # Kill existing rnsd processes
+        kill_cmd = [
+            "docker", "exec", self.container,
+            "pkill", "-f", "rnsd"
+        ]
+        subprocess.run(kill_cmd, capture_output=True, timeout=5)
+
+        # Wait a moment for process to terminate
+        time.sleep(0.5)
+
+        # Start rnsd in background
+        start_cmd = [
+            "docker", "exec", "-d", self.container,
+            "rnsd", "-v"
+        ]
+        result = subprocess.run(start_cmd, capture_output=True, text=True, timeout=10)
+
+        # Wait for daemon to be ready
+        time.sleep(2)
+
+        return {
+            "success": result.returncode == 0,
+            "error": result.stderr if result.returncode != 0 else None,
+        }
+
+    def stop_rnsd(self, timeout: int = 10) -> dict:
+        """
+        Stop the rnsd daemon on this node.
+
+        Returns:
+            dict with success status
+        """
+        cmd = [
+            "docker", "exec", self.container,
+            "pkill", "-f", "rnsd"
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+
+        return {
+            "success": True,  # pkill returns non-zero if no process found
+        }
+
+    def start_rnsd(self, timeout: int = 30) -> dict:
+        """
+        Start the rnsd daemon on this node.
+
+        Returns:
+            dict with success status
+        """
+        cmd = [
+            "docker", "exec", "-d", self.container,
+            "rnsd", "-v"
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+
+        # Wait for daemon to be ready
+        time.sleep(2)
+
+        return {
+            "success": result.returncode == 0,
+            "error": result.stderr if result.returncode != 0 else None,
+        }
+
+    def is_rnsd_running(self, timeout: int = 10) -> bool:
+        """Check if rnsd is running on this node."""
+        cmd = [
+            "docker", "exec", self.container,
+            "pgrep", "-f", "rnsd"
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return result.returncode == 0
+
+    # ========== Network Chaos Methods ==========
+
+    def exec_command(self, command: str, timeout: int = 30) -> dict:
+        """
+        Execute an arbitrary command on this node.
+
+        Args:
+            command: Shell command to execute
+
+        Returns:
+            dict with returncode, stdout, stderr
+        """
+        cmd = [
+            "docker", "exec", self.container,
+            "bash", "-c", command
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+
+        return {
+            "returncode": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "success": result.returncode == 0,
+        }

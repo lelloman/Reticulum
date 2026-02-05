@@ -1,0 +1,12 @@
+[reticulum]
+  enable_transport = no
+
+[logging]
+  loglevel = 4
+
+[interfaces]
+  [[TCP to Transport-2]]
+    type = TCPClientInterface
+    enabled = yes
+    target_host = transport-2
+    target_port = 4242
