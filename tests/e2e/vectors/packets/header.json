@@ -1,0 +1,119 @@
+{
+  "description": "Packet header encoding test vectors for Reticulum protocol conformance",
+  "version": "1.0",
+  "format": {
+    "header_1_min_size": 19,
+    "header_2_min_size": 35,
+    "flags_layout": "HH_CF_TT_DD_PP (header_type(2), context_flag(1), transport_type(1), dest_type(2), packet_type(2))",
+    "dest_hash_length": 16
+  },
+  "constants": {
+    "header_types": {"HEADER_1": 0, "HEADER_2": 1},
+    "packet_types": {"DATA": 0, "ANNOUNCE": 1, "LINKREQUEST": 2, "PROOF": 3},
+    "dest_types": {"SINGLE": 0, "GROUP": 1, "PLAIN": 2, "LINK": 3},
+    "transport_types": {"BROADCAST": 0, "TRANSPORT": 1}
+  },
+  "vectors": [
+    {
+      "id": "HDR-001",
+      "description": "HEADER_1 DATA packet to SINGLE destination",
+      "input": {
+        "header_type": 0,
+        "context_flag": 0,
+        "transport_type": 0,
+        "dest_type": 0,
+        "packet_type": 0,
+        "hops": 0,
+        "destination_hash_hex": "650b5d76b6bec0390d1f8cfca5bd33f9",
+        "context": 0,
+        "payload_hex": "48656c6c6f"
+      },
+      "expected": {
+        "flags": 0,
+        "flags_binary": "00000000",
+        "packet_hex": "0000650b5d76b6bec0390d1f8cfca5bd33f90048656c6c6f",
+        "header_length": 19,
+        "total_length": 24
+      }
+    },
+    {
+      "id": "HDR-002",
+      "description": "HEADER_2 ANNOUNCE packet via transport",
+      "input": {
+        "header_type": 1,
+        "context_flag": 0,
+        "transport_type": 1,
+        "dest_type": 0,
+        "packet_type": 1,
+        "hops": 3,
+        "transport_id_hex": "1469e89450c361b253aefb0c606b6111",
+        "destination_hash_hex": "650b5d76b6bec0390d1f8cfca5bd33f9",
+        "context": 0
+      },
+      "expected": {
+        "flags": 81,
+        "flags_binary": "01010001",
+        "header_hex": "51031469e89450c361b253aefb0c606b6111650b5d76b6bec0390d1f8cfca5bd33f900",
+        "header_length": 35
+      }
+    },
+    {
+      "id": "HDR-003",
+      "description": "HEADER_1 LINKREQUEST packet",
+      "input": {
+        "header_type": 0,
+        "context_flag": 0,
+        "transport_type": 0,
+        "dest_type": 0,
+        "packet_type": 2,
+        "hops": 0,
+        "destination_hash_hex": "650b5d76b6bec0390d1f8cfca5bd33f9",
+        "context": 0,
+        "payload_hex": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b"
+      },
+      "expected": {
+        "flags": 2,
+        "flags_binary": "00000010",
+        "packet_hex": "0200650b5d76b6bec0390d1f8cfca5bd33f9004219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b",
+        "total_length": 83
+      }
+    },
+    {
+      "id": "HDR-004",
+      "description": "HEADER_1 DATA packet to LINK destination with context flag",
+      "input": {
+        "header_type": 0,
+        "context_flag": 1,
+        "transport_type": 0,
+        "dest_type": 3,
+        "packet_type": 0,
+        "hops": 0,
+        "destination_hash_hex": "650b5d76b6bec0390d1f8cfca5bd33f9",
+        "context": 14,
+        "payload_hex": ""
+      },
+      "expected": {
+        "flags": 44,
+        "flags_binary": "00101100"
+      }
+    },
+    {
+      "id": "HDR-005",
+      "description": "HEADER_1 PROOF packet",
+      "input": {
+        "header_type": 0,
+        "context_flag": 0,
+        "transport_type": 0,
+        "dest_type": 0,
+        "packet_type": 3,
+        "hops": 1,
+        "destination_hash_hex": "650b5d76b6bec0390d1f8cfca5bd33f9",
+        "context": 0
+      },
+      "expected": {
+        "flags": 3,
+        "flags_binary": "00000011"
+      }
+    }
+  ]
+}

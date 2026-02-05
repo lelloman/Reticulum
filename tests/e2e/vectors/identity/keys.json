@@ -1,0 +1,87 @@
+{
+  "description": "Identity key test vectors for Reticulum protocol conformance",
+  "version": "1.0",
+  "note": "These are the fixed test keys from the Reticulum test suite. Identity hash = truncated_hash(public_key)",
+  "key_format": {
+    "private_key": "X25519_prv(32) + Ed25519_prv(32) = 64 bytes",
+    "public_key": "X25519_pub(32) + Ed25519_pub(32) = 64 bytes",
+    "identity_hash": "truncated_hash(public_key) = 16 bytes (128 bits)"
+  },
+  "vectors": [
+    {
+      "id": "IDENTITY-001",
+      "description": "Test identity 1 (used for link tests)",
+      "input": {
+        "private_key_hex": "f8953ffaf607627e615603ff1530c82c434cf87c07179dd7689ea776f30b964cfb7ba6164af00c5111a45e69e57d885e1285f8dbfe3a21e95ae17cf676b0f8b7"
+      },
+      "expected": {
+        "x25519_prv_hex": "f8953ffaf607627e615603ff1530c82c434cf87c07179dd7689ea776f30b964c",
+        "ed25519_prv_hex": "fb7ba6164af00c5111a45e69e57d885e1285f8dbfe3a21e95ae17cf676b0f8b7",
+        "public_key_hex": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa629249301cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b",
+        "x25519_pub_hex": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa62924930",
+        "ed25519_pub_hex": "1cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b",
+        "identity_hash_hex": "650b5d76b6bec0390d1f8cfca5bd33f9"
+      }
+    },
+    {
+      "id": "IDENTITY-002",
+      "description": "Test identity 2",
+      "input": {
+        "private_key_hex": "d85d036245436a3c33d3228affae06721f8203bc364ee0ee7556368ac62add650ebf8f926abf628da9d92baaa12db89bd6516ee92ec29765f3afafcb8622d697"
+      },
+      "expected": {
+        "x25519_prv_hex": "d85d036245436a3c33d3228affae06721f8203bc364ee0ee7556368ac62add65",
+        "ed25519_prv_hex": "0ebf8f926abf628da9d92baaa12db89bd6516ee92ec29765f3afafcb8622d697",
+        "public_key_hex": "a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd63596103b09e36c0fb83596fb2a6139075d6510236e6a86129cfc1fd403f74c5b11",
+        "x25519_pub_hex": "a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd635",
+        "ed25519_pub_hex": "96103b09e36c0fb83596fb2a6139075d6510236e6a86129cfc1fd403f74c5b11",
+        "identity_hash_hex": "1469e89450c361b253aefb0c606b6111"
+      }
+    },
+    {
+      "id": "IDENTITY-003",
+      "description": "Test identity 3",
+      "input": {
+        "private_key_hex": "8893e2bfd30fc08455997caf7abb7a6341716768dbbf9a91cc1455bd7eeaf74cdc10ec72a4d4179696040bac620ee97ebc861e2443e5270537ae766d91b58181"
+      },
+      "expected": {
+        "x25519_prv_hex": "8893e2bfd30fc08455997caf7abb7a6341716768dbbf9a91cc1455bd7eeaf74c",
+        "ed25519_prv_hex": "dc10ec72a4d4179696040bac620ee97ebc861e2443e5270537ae766d91b58181",
+        "public_key_hex": "d095214af0bc8267aa9e658375e1bb775029f2f798254a07fd6ce620bb7a135b10e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2",
+        "x25519_pub_hex": "d095214af0bc8267aa9e658375e1bb775029f2f798254a07fd6ce620bb7a135b",
+        "ed25519_pub_hex": "10e7d32e2d67aeb316515de2ee77e7097777b80edfe3b9173db0f5de320b88a2",
+        "identity_hash_hex": "e5fe93ee4acba095b3b9b6541515ed3e"
+      }
+    },
+    {
+      "id": "IDENTITY-004",
+      "description": "Test identity 4 (used for announce tests)",
+      "input": {
+        "private_key_hex": "b82c7a4f047561d974de7e38538281d7f005d3663615f30d9663bad35a716063c931672cd452175d55bcdd70bb7aa35a9706872a97963dc52029938ea7341b39"
+      },
+      "expected": {
+        "x25519_prv_hex": "b82c7a4f047561d974de7e38538281d7f005d3663615f30d9663bad35a716063",
+        "ed25519_prv_hex": "c931672cd452175d55bcdd70bb7aa35a9706872a97963dc52029938ea7341b39",
+        "public_key_hex": "3874502f43fea80b5f41c79c168cc1b4d6191111b93d49cb2362a24d99680458c08f3d57983dacdbd6db67e12334be91b1f64eb642df740e03813cf288d25e14",
+        "x25519_pub_hex": "3874502f43fea80b5f41c79c168cc1b4d6191111b93d49cb2362a24d99680458",
+        "ed25519_pub_hex": "c08f3d57983dacdbd6db67e12334be91b1f64eb642df740e03813cf288d25e14",
+        "identity_hash_hex": "1333b911fa8ebb16726996adbe3c6262"
+      }
+    },
+    {
+      "id": "IDENTITY-005",
+      "description": "Test identity 5",
+      "input": {
+        "private_key_hex": "08bb35f92b06a0832991165a0d9b4fd91af7b7765ce4572aa6222070b11b767092b61b0fd18b3a59cae6deb9db6d4bfb1c7fcfe076cfd66eea7ddd5f877543b9"
+      },
+      "expected": {
+        "x25519_prv_hex": "08bb35f92b06a0832991165a0d9b4fd91af7b7765ce4572aa6222070b11b7670",
+        "ed25519_prv_hex": "92b61b0fd18b3a59cae6deb9db6d4bfb1c7fcfe076cfd66eea7ddd5f877543b9",
+        "public_key_hex": "d4449bc887612b79f33fc890300d0dbd4fe5407c3b8fcaf1f62a2a2feabced7c1689bea590fe99eee563fdddcf66ea0b1281cf095251504da2fdb2b2428ca34f",
+        "x25519_pub_hex": "d4449bc887612b79f33fc890300d0dbd4fe5407c3b8fcaf1f62a2a2feabced7c",
+        "ed25519_pub_hex": "1689bea590fe99eee563fdddcf66ea0b1281cf095251504da2fdb2b2428ca34f",
+        "identity_hash_hex": "d13712efc45ef87674fb5ac26c37c912"
+      }
+    }
+  ]
+}

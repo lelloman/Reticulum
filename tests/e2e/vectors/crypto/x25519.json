@@ -1,0 +1,40 @@
+{
+  "description": "X25519 key exchange test vectors for Reticulum protocol conformance",
+  "version": "1.0",
+  "note": "These vectors use fixed keys from the Reticulum test suite for reproducibility",
+  "vectors": [
+    {
+      "id": "X25519-001",
+      "description": "Key exchange between two parties using fixed test keys",
+      "input": {
+        "private_key_a_hex": "f8953ffaf607627e615603ff1530c82c434cf87c07179dd7689ea776f30b964c",
+        "private_key_b_hex": "d85d036245436a3c33d3228affae06721f8203bc364ee0ee7556368ac62add65"
+      },
+      "expected": {
+        "public_key_a_hex": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa62924930",
+        "public_key_b_hex": "a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd635",
+        "shared_secret_hex": "44e3be07a38bab658163ca5ceed491e4cbb06c155021bd54eba97f5a1e7c0b34"
+      }
+    },
+    {
+      "id": "X25519-002",
+      "description": "Key generation from private bytes",
+      "input": {
+        "private_key_hex": "f8953ffaf607627e615603ff1530c82c434cf87c07179dd7689ea776f30b964c"
+      },
+      "expected": {
+        "public_key_hex": "4219d9ce29da42bc823b66b24a051c65b482f062a436bdeb3793bbfa62924930"
+      }
+    },
+    {
+      "id": "X25519-003",
+      "description": "Key generation from second test key",
+      "input": {
+        "private_key_hex": "d85d036245436a3c33d3228affae06721f8203bc364ee0ee7556368ac62add65"
+      },
+      "expected": {
+        "public_key_hex": "a6ad9609176a4c5012ae056539065be584d5dc92e78ee151dd64654ccf0cd635"
+      }
+    }
+  ]
+}

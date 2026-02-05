@@ -1,0 +1,56 @@
+{
+  "description": "Announce packet test vectors for Reticulum protocol conformance",
+  "version": "1.0",
+  "format": {
+    "without_ratchet": "public_key(64) + name_hash(10) + random_hash(10) + signature(64) + [app_data]",
+    "with_ratchet": "public_key(64) + name_hash(10) + random_hash(10) + ratchet(32) + signature(64) + [app_data]",
+    "signature_covers": "destination_hash + public_key + name_hash + random_hash + [ratchet] + [app_data]"
+  },
+  "vectors": [
+    {
+      "id": "ANN-001",
+      "description": "Announce packet without ratchet",
+      "input": {
+        "identity_private_key_hex": "b82c7a4f047561d974de7e38538281d7f005d3663615f30d9663bad35a716063c931672cd452175d55bcdd70bb7aa35a9706872a97963dc52029938ea7341b39",
+        "app_name": "test",
+        "aspects": ["announce"],
+        "name_hash_hex": "8674f82747dcea386b64",
+        "random_hash_hex": "dce20de72c0069847c2e"
+      },
+      "expected": {
+        "identity_hash_hex": "1333b911fa8ebb16726996adbe3c6262",
+        "public_key_hex": "3874502f43fea80b5f41c79c168cc1b4d6191111b93d49cb2362a24d99680458c08f3d57983dacdbd6db67e12334be91b1f64eb642df740e03813cf288d25e14",
+        "destination_hash_hex": "565b29db423c3ed7953252efec5569a6",
+        "signature_hex": "fccd151aaecfaa3fd52d36f222fd8b3c5ce43c880d2cbe44d3e48c4a8b6757de91005c38171aac9edd617d1232c3fd2700b71dc446483f485e5bbcf59d4e1908",
+        "payload_length": 148,
+        "has_ratchet": false
+      }
+    },
+    {
+      "id": "ANN-002",
+      "description": "Destination hash computation",
+      "input": {
+        "name_hash_hex": "8674f82747dcea386b64",
+        "identity_hash_hex": "1333b911fa8ebb16726996adbe3c6262"
+      },
+      "expected": {
+        "destination_hash_hex": "565b29db423c3ed7953252efec5569a6"
+      }
+    },
+    {
+      "id": "ANN-003",
+      "description": "Announce signature validation data",
+      "input": {
+        "destination_hash_hex": "565b29db423c3ed7953252efec5569a6",
+        "public_key_hex": "3874502f43fea80b5f41c79c168cc1b4d6191111b93d49cb2362a24d99680458c08f3d57983dacdbd6db67e12334be91b1f64eb642df740e03813cf288d25e14",
+        "name_hash_hex": "8674f82747dcea386b64",
+        "random_hash_hex": "dce20de72c0069847c2e",
+        "ratchet_hex": "",
+        "app_data_hex": ""
+      },
+      "expected": {
+        "signed_data_hex": "565b29db423c3ed7953252efec5569a63874502f43fea80b5f41c79c168cc1b4d6191111b93d49cb2362a24d99680458c08f3d57983dacdbd6db67e12334be91b1f64eb642df740e03813cf288d25e148674f82747dcea386b64dce20de72c0069847c2e"
+      }
+    }
+  ]
+}

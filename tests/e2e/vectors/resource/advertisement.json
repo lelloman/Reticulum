@@ -1,0 +1,77 @@
+{
+  "description": "Resource advertisement test vectors for Reticulum protocol conformance",
+  "version": "1.0",
+  "format": {
+    "encoding": "msgpack dictionary",
+    "fields": {
+      "t": "Transfer size (bytes)",
+      "d": "Total uncompressed data size (bytes)",
+      "n": "Number of parts",
+      "h": "Resource hash (32 bytes)",
+      "r": "Random hash (4 bytes)",
+      "o": "Original hash (32 bytes)",
+      "i": "Segment index",
+      "l": "Total segments",
+      "q": "Request ID (optional)",
+      "f": "Flags byte",
+      "m": "Hashmap (4 bytes per part)"
+    },
+    "flags_layout": "x_p_u_s_c_e (metadata, is_response, is_request, split, compressed, encrypted)"
+  },
+  "vectors": [
+    {
+      "id": "RES-001",
+      "description": "Flags byte encoding",
+      "input": {
+        "encrypted": true,
+        "compressed": false,
+        "split": false,
+        "is_request": false,
+        "is_response": false,
+        "has_metadata": false
+      },
+      "expected": {
+        "flags": 1
+      }
+    },
+    {
+      "id": "RES-002",
+      "description": "Flags byte with compression",
+      "input": {
+        "encrypted": true,
+        "compressed": true,
+        "split": false,
+        "is_request": false,
+        "is_response": false,
+        "has_metadata": false
+      },
+      "expected": {
+        "flags": 3
+      }
+    },
+    {
+      "id": "RES-003",
+      "description": "Flags byte with all flags",
+      "input": {
+        "encrypted": true,
+        "compressed": true,
+        "split": true,
+        "is_request": true,
+        "is_response": false,
+        "has_metadata": true
+      },
+      "expected": {
+        "flags": 47
+      }
+    },
+    {
+      "id": "RES-004",
+      "description": "Map hash computation",
+      "input": {
+        "data_hex": "48656c6c6f20576f726c64",
+        "random_hash_hex": "12345678"
+      },
+      "note": "map_hash = full_hash(data + random_hash)[:4]"
+    }
+  ]
+}

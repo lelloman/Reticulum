@@ -1,0 +1,13 @@
+[reticulum]
+  enable_transport = yes
+  respond_to_probes = yes
+
+[logging]
+  loglevel = 4
+
+[interfaces]
+  [[TCP Server]]
+    type = TCPServerInterface
+    enabled = yes
+    listen_ip = 0.0.0.0
+    listen_port = 4242

@@ -1,0 +1,46 @@
+{
+  "description": "HKDF key derivation test vectors for Reticulum protocol conformance",
+  "version": "1.0",
+  "note": "Reticulum uses HKDF-SHA256 for key derivation in links and encryption",
+  "vectors": [
+    {
+      "id": "HKDF-001",
+      "description": "Standard HKDF test case",
+      "input": {
+        "ikm_hex": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+        "salt_hex": "000102030405060708090a0b0c",
+        "info_hex": "",
+        "length": 42
+      },
+      "expected": {
+        "okm_hex": "b2a3d45126d31fb6828ef00d76c6d54e9c2bd4785e49c6ad86e327d89d0de9408eeda1cbef2b03f30e05"
+      }
+    },
+    {
+      "id": "HKDF-002",
+      "description": "Link key derivation (64 bytes for AES-256 signing + encryption)",
+      "input": {
+        "ikm_hex": "44e3be07a38bab658163ca5ceed491e4cbb06c155021bd54eba97f5a1e7c0b34",
+        "salt_hex": "650b5d76b6bec0390d1f8cfca5bd33f9",
+        "info_hex": "",
+        "length": 64
+      },
+      "expected": {
+        "okm_hex": "b39199a9f348023aa772c453a8ef3c411ac0797370172383ebf080d11eaca5cbcd139c66fb3701e1ec7ae8364bcb38b19db90cb63ab345401d4380892669d172"
+      }
+    },
+    {
+      "id": "HKDF-003",
+      "description": "Identity encryption key derivation (64 bytes)",
+      "input": {
+        "ikm_hex": "44e3be07a38bab658163ca5ceed491e4cbb06c155021bd54eba97f5a1e7c0b34",
+        "salt_hex": "650b5d76b6bec0390d1f8cfca5bd33f9",
+        "info_hex": "",
+        "length": 64
+      },
+      "expected": {
+        "okm_hex": "b39199a9f348023aa772c453a8ef3c411ac0797370172383ebf080d11eaca5cbcd139c66fb3701e1ec7ae8364bcb38b19db90cb63ab345401d4380892669d172"
+      }
+    }
+  ]
+}

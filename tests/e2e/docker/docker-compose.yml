@@ -1,0 +1,98 @@
+services:
+  transport:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-transport
+    hostname: transport
+    volumes:
+      - ./configs/transport/config:/root/.reticulum/config:ro
+      - transport-storage:/root/.reticulum/storage
+    networks:
+      rns-e2e:
+        ipv4_address: 172.28.0.10
+    healthcheck:
+      test: ["CMD", "rnstatus"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 3s
+
+  node-a:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-node-a
+    hostname: node-a
+    volumes:
+      - ./configs/node-a/config:/root/.reticulum/config:ro
+      - node-a-storage:/root/.reticulum/storage
+    networks:
+      rns-e2e:
+        ipv4_address: 172.28.0.11
+    depends_on:
+      transport:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "rnstatus"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 3s
+
+  node-c:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-node-c
+    hostname: node-c
+    volumes:
+      - ./configs/node-c/config:/root/.reticulum/config:ro
+      - node-c-storage:/root/.reticulum/storage
+    networks:
+      rns-e2e:
+        ipv4_address: 172.28.0.12
+    depends_on:
+      transport:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "rnstatus"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 3s
+
+  test-runner:
+    build:
+      context: ../../../
+      dockerfile: tests/e2e/docker/Dockerfile
+    container_name: rns-test-runner
+    volumes:
+      - ../../../:/app:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./results:/results
+    networks:
+      - rns-e2e
+    depends_on:
+      node-a:
+        condition: service_healthy
+      node-c:
+        condition: service_healthy
+    environment:
+      - TRANSPORT_HOST=transport
+      - NODE_A_HOST=node-a
+      - NODE_C_HOST=node-c
+      - RESULTS_DIR=/results
+    entrypoint: ["python", "-m", "pytest", "tests/e2e/scenarios/", "-v", "--tb=short"]
+
+networks:
+  rns-e2e:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  transport-storage:
+  node-a-storage:
+  node-c-storage:

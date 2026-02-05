@@ -4,6 +4,56 @@ test:
 	@echo Running tests...
 	python3 -m tests.all
 
+test-e2e:
+	@echo Running E2E tests...
+	python3 -m tests.e2e.runner
+
+test-vectors:
+	@echo Running vector tests only...
+	python3 -m tests.e2e.runner --vectors-only
+
+test-interop:
+	@echo Running interoperability tests...
+	python3 -m tests.e2e.runner --interop
+
+# E2E Docker tests - real network testing with multiple nodes
+test-e2e-docker-build:
+	@echo Building Docker E2E test environment...
+	cd tests/e2e/docker && docker compose build
+
+test-e2e-docker-up: test-e2e-docker-build
+	@echo Starting Docker E2E test environment...
+	cd tests/e2e/docker && docker compose up -d transport node-a node-c
+	@echo Waiting for nodes to become healthy...
+	@sleep 5
+	@docker exec rns-node-a rnstatus || true
+	@docker exec rns-node-c rnstatus || true
+
+test-e2e-docker-down:
+	@echo Stopping Docker E2E test environment...
+	cd tests/e2e/docker && docker compose down -v
+
+test-e2e-docker: test-e2e-docker-up
+	@echo Running Docker E2E tests...
+	docker compose -f tests/e2e/docker/docker-compose.yml run --rm --entrypoint "python -m pytest tests/e2e/scenarios/ -v --tb=short" test-runner || true
+	$(MAKE) test-e2e-docker-down
+
+test-e2e-docker-run:
+	@echo Running Docker E2E tests (environment must be up)...
+	python3 -m pytest tests/e2e/scenarios/ -v --tb=short
+
+test-e2e-docker-logs:
+	cd tests/e2e/docker && docker compose logs -f
+
+test-e2e-docker-shell-a:
+	docker exec -it rns-node-a /bin/bash
+
+test-e2e-docker-shell-c:
+	docker exec -it rns-node-c /bin/bash
+
+test-e2e-docker-shell-transport:
+	docker exec -it rns-transport /bin/bash
+
 clean:
 	@echo Cleaning...
 	@-rm -rf ./build
@@ -19,6 +69,13 @@ clean:
 	@-rm -rf ./RNS/vendor/__pycache__
 	@-rm -rf ./RNS/vendor/i2plib/__pycache__
 	@-rm -rf ./tests/__pycache__
+	@-rm -rf ./tests/e2e/__pycache__
+	@-rm -rf ./tests/e2e/interfaces/__pycache__
+	@-rm -rf ./tests/e2e/utils/__pycache__
+	@-rm -rf ./tests/e2e/scenarios/__pycache__
+	@-rm -rf ./tests/e2e/helpers/__pycache__
+	@-rm -rf ./tests/e2e/scripts/__pycache__
+	@-rm -rf ./tests/e2e/docker/results
 	@-rm -rf ./tests/rnsconfig/storage
 	@-rm -rf ./*.egg-info
 	@make -C docs clean

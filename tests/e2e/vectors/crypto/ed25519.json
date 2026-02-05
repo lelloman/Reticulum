@@ -1,0 +1,40 @@
+{
+  "description": "Ed25519 signature test vectors for Reticulum protocol conformance",
+  "version": "1.0",
+  "note": "These vectors use fixed keys from the Reticulum test suite for reproducibility",
+  "vectors": [
+    {
+      "id": "ED25519-001",
+      "description": "Sign and verify a test message",
+      "input": {
+        "private_key_hex": "fb7ba6164af00c5111a45e69e57d885e1285f8dbfe3a21e95ae17cf676b0f8b7",
+        "message_hex": "54657374206d65737361676520666f72207369676e696e67"
+      },
+      "expected": {
+        "public_key_hex": "1cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b",
+        "signature_hex": "d2a6f0be8527261d527045dd810b543a24716b98e0400ed4c793094dffe2e66d55105919691d2c2dd3e79268b9412beec7ea8035fc277796e5eeed25139c2a0e"
+      }
+    },
+    {
+      "id": "ED25519-002",
+      "description": "Public key derivation from private key",
+      "input": {
+        "private_key_hex": "fb7ba6164af00c5111a45e69e57d885e1285f8dbfe3a21e95ae17cf676b0f8b7"
+      },
+      "expected": {
+        "public_key_hex": "1cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b"
+      }
+    },
+    {
+      "id": "ED25519-003",
+      "description": "Sign empty message",
+      "input": {
+        "private_key_hex": "fb7ba6164af00c5111a45e69e57d885e1285f8dbfe3a21e95ae17cf676b0f8b7",
+        "message_hex": ""
+      },
+      "expected": {
+        "public_key_hex": "1cd07b674027511e73469c4edec93634c2965fdeeae8e1c50db4b912c616501b"
+      }
+    }
+  ]
+}

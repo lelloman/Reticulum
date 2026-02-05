@@ -1,0 +1,63 @@
+{
+  "description": "Channel envelope test vectors for Reticulum protocol conformance",
+  "version": "1.0",
+  "format": {
+    "structure": "msgtype(2) + sequence(2) + length(2) + data",
+    "byte_order": "big-endian (network order)"
+  },
+  "vectors": [
+    {
+      "id": "CHN-001",
+      "description": "Basic envelope packing",
+      "input": {
+        "msgtype": 1,
+        "sequence": 0,
+        "data_hex": "48656c6c6f"
+      },
+      "expected": {
+        "envelope_hex": "00010000000548656c6c6f",
+        "length": 11
+      }
+    },
+    {
+      "id": "CHN-002",
+      "description": "Envelope with sequence number",
+      "input": {
+        "msgtype": 256,
+        "sequence": 1234,
+        "data_hex": "74657374"
+      },
+      "expected": {
+        "envelope_hex": "010004d2000474657374",
+        "length": 10
+      }
+    },
+    {
+      "id": "CHN-003",
+      "description": "Empty data envelope",
+      "input": {
+        "msgtype": 1,
+        "sequence": 0,
+        "data_hex": ""
+      },
+      "expected": {
+        "envelope_hex": "000100000000",
+        "length": 6
+      }
+    },
+    {
+      "id": "CHN-004",
+      "description": "System message type (StreamDataMessage)",
+      "input": {
+        "msgtype": 65280,
+        "sequence": 0,
+        "data_hex": "48656c6c6f20576f726c64"
+      },
+      "expected": {
+        "envelope_hex": "ff000000000b48656c6c6f20576f726c64",
+        "length": 17
+      },
+      "note": "MSGTYPE 0xFF00 is reserved for StreamDataMessage"
+    }
+  ]
+}
