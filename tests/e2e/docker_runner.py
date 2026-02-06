@@ -13,6 +13,7 @@ Options:
     --run           Run tests (environment must be up)
     --full          Full test cycle: up, run tests, down
     --logs          Show container logs
+    --topology      Topology to use: star (default), chain, ring, mesh, all
     -v, --verbose   Verbose output
 """
 
@@ -23,7 +24,29 @@ import time
 import os
 
 DOCKER_COMPOSE_DIR = os.path.join(os.path.dirname(__file__), "docker")
-CONTAINERS = ["rns-transport", "rns-node-a", "rns-node-c"]
+
+TOPOLOGY_CONFIG = {
+    "star": {
+        "compose": "docker-compose.yml",
+        "services": ["transport", "node-a", "node-c"],
+        "containers": ["rns-transport", "rns-node-a", "rns-node-c"],
+    },
+    "chain": {
+        "compose": "docker-compose.chain.yml",
+        "services": ["transport", "transport-2", "node-a", "node-d", "chain-link"],
+        "containers": ["rns-transport", "rns-transport-2", "rns-node-a", "rns-node-d", "rns-chain-link"],
+    },
+    "ring": {
+        "compose": "docker-compose.ring.yml",
+        "services": ["transport", "transport-2", "node-a", "node-c"],
+        "containers": ["rns-transport", "rns-transport-2", "rns-node-a", "rns-node-c"],
+    },
+    "mesh": {
+        "compose": "docker-compose.mesh.yml",
+        "services": ["transport", "node-a", "node-b", "node-c", "node-d", "node-e"],
+        "containers": ["rns-transport", "rns-node-a", "rns-node-b", "rns-node-c", "rns-node-d", "rns-node-e"],
+    },
+}
 
 
 def run_cmd(cmd, check=True, capture=False):
@@ -34,9 +57,9 @@ def run_cmd(cmd, check=True, capture=False):
     return subprocess.run(cmd, check=check)
 
 
-def docker_compose(*args):
+def docker_compose(compose_file, *args):
     """Run docker compose command."""
-    cmd = ["docker", "compose", "-f", os.path.join(DOCKER_COMPOSE_DIR, "docker-compose.yml")]
+    cmd = ["docker", "compose", "-f", os.path.join(DOCKER_COMPOSE_DIR, compose_file)]
     cmd.extend(args)
     return run_cmd(cmd)
 
@@ -51,12 +74,12 @@ def check_container_healthy(container):
     return result.returncode == 0 and result.stdout.strip() == "healthy"
 
 
-def wait_for_healthy(timeout=60):
+def wait_for_healthy(containers, timeout=60):
     """Wait for all containers to become healthy."""
     print(f"Waiting for containers to become healthy (timeout: {timeout}s)...")
     start = time.time()
     while time.time() - start < timeout:
-        all_healthy = all(check_container_healthy(c) for c in CONTAINERS)
+        all_healthy = all(check_container_healthy(c) for c in containers)
         if all_healthy:
             print("All containers healthy!")
             return True
@@ -66,23 +89,32 @@ def wait_for_healthy(timeout=60):
     return False
 
 
+def get_topology_config(args):
+    """Get the topology configuration for the current args."""
+    return TOPOLOGY_CONFIG[args.topology]
+
+
 def do_up(args):
     """Start the Docker environment."""
+    config = get_topology_config(args)
+    compose_file = config["compose"]
+
     if not args.no_build:
-        print("Building Docker images...")
-        docker_compose("build")
+        print(f"Building Docker images ({args.topology} topology)...")
+        docker_compose(compose_file, "build")
     else:
         print("Skipping build (--no-build)")
-    print("Starting Docker environment...")
-    docker_compose("up", "-d", "transport", "node-a", "node-c")
 
-    if not wait_for_healthy():
+    print(f"Starting Docker environment ({args.topology} topology)...")
+    docker_compose(compose_file, "up", "-d", *config["services"])
+
+    if not wait_for_healthy(config["containers"]):
         print("ERROR: Containers did not become healthy")
         do_logs(args)
         return False
 
     # Show status
-    for container in CONTAINERS:
+    for container in config["containers"]:
         print(f"\n=== {container} status ===")
         run_cmd(["docker", "exec", container, "rnstatus"], check=False)
 
@@ -91,22 +123,36 @@ def do_up(args):
 
 def do_down(args):
     """Stop the Docker environment."""
-    print("Stopping Docker environment...")
-    docker_compose("down", "-v")
+    config = get_topology_config(args)
+    print(f"Stopping Docker environment ({args.topology} topology)...")
+    docker_compose(config["compose"], "down", "-v")
 
 
 def do_run(args):
     """Run the tests."""
-    print("Running E2E tests...")
+    topology = args.topology
+    print(f"Running E2E tests ({topology} topology)...")
+
+    env = os.environ.copy()
+    env["TOPOLOGY"] = topology
+
     pytest_args = ["python", "-m", "pytest", "tests/e2e/scenarios/", "-v", "--tb=short"]
+
+    if topology == "star":
+        pytest_args.extend(["-m", "not (topology_chain or topology_ring or topology_mesh)"])
+    else:
+        pytest_args.extend(["-m", f"topology_{topology}"])
+
     if args.verbose:
         pytest_args.append("-s")
-    return run_cmd(pytest_args, check=False).returncode == 0
+
+    return subprocess.run(pytest_args, env=env, check=False).returncode == 0
 
 
 def do_logs(args):
     """Show container logs."""
-    docker_compose("logs", "--tail=100")
+    config = get_topology_config(args)
+    docker_compose(config["compose"], "logs", "--tail=100")
 
 
 def do_full(args):
@@ -122,6 +168,31 @@ def do_full(args):
         do_down(args)
 
 
+def do_all(args):
+    """Run all topologies sequentially."""
+    results = {}
+    for topology in ["star", "chain", "ring", "mesh"]:
+        print(f"\n{'='*60}")
+        print(f"  Running topology: {topology}")
+        print(f"{'='*60}\n")
+
+        args.topology = topology
+        success = do_full(args)
+        results[topology] = success
+
+        if not success:
+            print(f"\nWARNING: {topology} topology tests failed")
+
+    print(f"\n{'='*60}")
+    print("  Results Summary")
+    print(f"{'='*60}")
+    for topo, success in results.items():
+        status = "PASS" if success else "FAIL"
+        print(f"  {topo:10s} {status}")
+
+    return all(results.values())
+
+
 def main():
     parser = argparse.ArgumentParser(description="Docker E2E Test Runner")
     parser.add_argument("--up", action="store_true", help="Start Docker environment")
@@ -131,12 +202,26 @@ def main():
     parser.add_argument("--logs", action="store_true", help="Show container logs")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--no-build", action="store_true", help="Skip Docker image build")
+    parser.add_argument(
+        "--topology",
+        choices=["star", "chain", "ring", "mesh", "all"],
+        default="star",
+        help="Topology to use (default: star)",
+    )
 
     args = parser.parse_args()
 
     # Default to full if no action specified
     if not any([args.up, args.down, args.run, args.full, args.logs]):
         args.full = True
+
+    # Handle "all" topology specially
+    if args.topology == "all":
+        if args.up or args.down or args.run or args.logs:
+            print("ERROR: --topology all only works with --full (or default)")
+            sys.exit(1)
+        success = do_all(args)
+        sys.exit(0 if success else 1)
 
     success = True
 

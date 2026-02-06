@@ -13,7 +13,6 @@ Test IDs:
 
 import pytest
 import time
-import os
 
 from helpers.docker_exec import NodeInterface
 from helpers.fixtures import (
@@ -22,11 +21,6 @@ from helpers.fixtures import (
     CONTAINER_NODE_D,
     CONTAINER_NODE_E,
 )
-
-
-def get_topology():
-    """Get the current topology from environment."""
-    return os.environ.get("TOPOLOGY", "star")
 
 
 @pytest.fixture
@@ -67,9 +61,6 @@ class TestChainTopology:
 
         A → T1 → chain-link → T2 → D
         """
-        if get_topology() != "chain":
-            pytest.skip("Chain topology not active")
-
         aspects = ["topology", "chain", "link"]
 
         # Start destination on node-d (far end of chain)
@@ -95,9 +86,6 @@ class TestChainTopology:
         """
         TOPO-002: Measure path discovery latency in chain.
         """
-        if get_topology() != "chain":
-            pytest.skip("Chain topology not active")
-
         aspects = ["topology", "chain", "discovery"]
 
         # Create destination and announce
@@ -125,9 +113,6 @@ class TestChainTopology:
         """
         Data transfer across 3-hop chain.
         """
-        if get_topology() != "chain":
-            pytest.skip("Chain topology not active")
-
         aspects = ["topology", "chain", "data"]
 
         dest = node_d.start_destination_server(
@@ -167,9 +152,6 @@ class TestRingTopology:
 
         Both A and C are connected to both T1 and T2.
         """
-        if get_topology() != "ring":
-            pytest.skip("Ring topology not active")
-
         aspects = ["topology", "ring", "redundant"]
 
         dest = node_c.start_destination_server(
@@ -195,9 +177,6 @@ class TestRingTopology:
 
         This test requires network chaos capabilities.
         """
-        if get_topology() != "ring":
-            pytest.skip("Ring topology not active")
-
         aspects = ["topology", "ring", "failover"]
 
         dest = node_c.start_destination_server(
@@ -236,9 +215,6 @@ class TestMeshTopology:
         """
         TOPO-005: Any node can communicate with any other.
         """
-        if get_topology() != "mesh":
-            pytest.skip("Mesh topology not active")
-
         aspects = ["topology", "mesh", "anytoany"]
 
         # Start destinations on multiple nodes
@@ -283,9 +259,6 @@ class TestMeshTopology:
 
         All nodes should receive announces from all other nodes.
         """
-        if get_topology() != "mesh":
-            pytest.skip("Mesh topology not active")
-
         aspects = ["topology", "mesh", "announce"]
 
         # Each node creates and announces a destination
@@ -313,9 +286,6 @@ class TestMeshTopology:
         """
         Resource transfer across mesh network.
         """
-        if get_topology() != "mesh":
-            pytest.skip("Mesh topology not active")
-
         aspects = ["topology", "mesh", "resource"]
 
         dest = node_e.start_destination_server(

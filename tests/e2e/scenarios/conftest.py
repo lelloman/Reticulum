@@ -12,9 +12,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from helpers.docker_exec import NodeInterface
 from helpers.fixtures import (
     CONTAINER_TRANSPORT,
+    CONTAINER_TRANSPORT_2,
     CONTAINER_NODE_A,
+    CONTAINER_NODE_B,
     CONTAINER_NODE_C,
+    CONTAINER_NODE_D,
+    CONTAINER_NODE_E,
+    CONTAINER_CHAIN_LINK,
 )
+
+TOPOLOGY_CONTAINERS = {
+    "star": [CONTAINER_TRANSPORT, CONTAINER_NODE_A, CONTAINER_NODE_C],
+    "chain": [CONTAINER_TRANSPORT, CONTAINER_TRANSPORT_2, CONTAINER_NODE_A, CONTAINER_NODE_D, CONTAINER_CHAIN_LINK],
+    "ring": [CONTAINER_TRANSPORT, CONTAINER_TRANSPORT_2, CONTAINER_NODE_A, CONTAINER_NODE_C],
+    "mesh": [CONTAINER_TRANSPORT, CONTAINER_NODE_A, CONTAINER_NODE_B, CONTAINER_NODE_C, CONTAINER_NODE_D, CONTAINER_NODE_E],
+}
 
 
 # ============================================================
@@ -33,6 +45,35 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "topology_chain: tests requiring chain topology (A → T1 → T2 → D)")
     config.addinivalue_line("markers", "topology_ring: tests requiring ring topology (redundant paths)")
     config.addinivalue_line("markers", "topology_mesh: tests requiring mesh topology (5 nodes)")
+
+
+_TOPOLOGY_MARKERS = {
+    "topology_chain": "chain",
+    "topology_ring": "ring",
+    "topology_mesh": "mesh",
+}
+
+
+def pytest_collection_modifyitems(config, items):
+    """Auto-deselect topology tests that don't match the active topology."""
+    topology = os.environ.get("TOPOLOGY", "star")
+
+    deselected = []
+    remaining = []
+
+    for item in items:
+        skip = False
+        for marker_name, topo_name in _TOPOLOGY_MARKERS.items():
+            if item.get_closest_marker(marker_name) and topology != topo_name:
+                deselected.append(item)
+                skip = True
+                break
+        if not skip:
+            remaining.append(item)
+
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        items[:] = remaining
 
 
 def _check_container_running(container: str) -> bool:
@@ -63,7 +104,8 @@ def docker_env():
     This fixture verifies all required containers are running.
     It does NOT start them - use `make test-e2e-docker-up` first.
     """
-    containers = [CONTAINER_TRANSPORT, CONTAINER_NODE_A, CONTAINER_NODE_C]
+    topology = os.environ.get("TOPOLOGY", "star")
+    containers = TOPOLOGY_CONTAINERS.get(topology, TOPOLOGY_CONTAINERS["star"])
 
     for container in containers:
         if not _check_container_running(container):

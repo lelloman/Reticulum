@@ -83,6 +83,7 @@ services:
       - NODE_A_HOST=node-a
       - NODE_C_HOST=node-c
       - RESULTS_DIR=/results
+      - TOPOLOGY=star
     entrypoint: ["python", "-m", "pytest", "tests/e2e/scenarios/", "-v", "--tb=short"]
 
 networks:
