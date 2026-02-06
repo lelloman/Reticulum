@@ -9,7 +9,6 @@ Test IDs:
 """
 
 import pytest
-import time
 import os
 
 
@@ -50,8 +49,7 @@ class TestResourceE2E:
         assert result["resource_completed"] is True
 
         # Verify receiver got the correct data
-        time.sleep(1.0)
-        received = node_c.get_received_data(data_type="resource")
+        received = node_c.get_received_data(data_type="resource", timeout=5.0)
         assert len(received) > 0, "No resources received by node-c"
         sent_hex = small_data.hex()
         matching = [r for r in received if r["data_hex"] == sent_hex]

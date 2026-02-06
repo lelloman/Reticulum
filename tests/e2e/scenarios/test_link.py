@@ -84,8 +84,7 @@ class TestLinkE2E:
         assert result["data_sent"] is True
 
         # Verify receiver got the data
-        time.sleep(1.0)
-        received = node_c.get_received_data(data_type="packet")
+        received = node_c.get_received_data(data_type="packet", timeout=5.0)
         assert len(received) > 0, "No packets received by node-c"
         # Find our data in received packets
         sent_hex = test_data.hex()
@@ -227,7 +226,14 @@ class TestLinkE2E:
 
         # Close link from client side (via Transport)
         node_a.close_link(link_id)
-        time.sleep(2.0)
+
+        # Poll until the link disappears on server side
+        start = time.time()
+        while time.time() - start < 3.0:
+            active_after = node_c.get_active_links()
+            if link_id not in [l["link_id"] for l in active_after]:
+                break
+            time.sleep(0.1)
 
         # Verify link is gone on server side
         active_after = node_c.get_active_links()

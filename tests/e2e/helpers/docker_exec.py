@@ -250,13 +250,21 @@ class NodeInterface:
             "register_handler": register_handler,
         })
 
-    def get_received_data(self, data_type: Optional[str] = None, clear: bool = False) -> list:
+    def get_received_data(
+        self,
+        data_type: Optional[str] = None,
+        clear: bool = False,
+        timeout: float = 0,
+        expected_count: int = 1,
+    ) -> list:
         """
         Get data received by the daemon on this node.
 
         Args:
             data_type: Filter by type ("packet", "resource", "channel_message", "buffer_data", "request", "proof_requested")
             clear: Whether to clear received data after fetching
+            timeout: If >0, poll daemon-side until expected_count items arrive or timeout expires
+            expected_count: Minimum number of matching items to wait for (default 1)
 
         Returns:
             list of received data dicts
@@ -264,7 +272,11 @@ class NodeInterface:
         args = {"clear": clear}
         if data_type:
             args["type"] = data_type
-        return exec_on_node(self.container, "get_received_data", args)
+        if timeout > 0:
+            args["timeout"] = timeout
+            args["expected_count"] = expected_count
+        return exec_on_node(self.container, "get_received_data", args,
+                            timeout=int(timeout) + 10 if timeout > 0 else 30)
 
     def clear_received_data(self) -> dict:
         """Clear all received data on this node."""
@@ -339,19 +351,6 @@ class NodeInterface:
             args["proof_strategy"] = proof_strategy
 
         result = exec_on_node(self.container, "serve_destination", args, timeout=15)
-
-        # Wait for the announce to propagate, then re-announce for reliability.
-        # With a persistent daemon, many destinations accumulate in Transport
-        # and announce bandwidth can be tight — the second announce ensures
-        # propagation even if the first was rate-limited.
-        time.sleep(1.0)
-        if announce:
-            try:
-                exec_on_node(self.container, "announce", {
-                    "destination_hash": result["destination_hash"],
-                }, timeout=5)
-            except Exception:
-                pass
 
         return result
 

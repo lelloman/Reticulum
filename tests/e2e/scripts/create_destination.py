@@ -59,8 +59,7 @@ def run(args: dict) -> dict:
             dest.announce(app_data=app_data)
         else:
             dest.announce()
-        # Brief delay to ensure announce is queued with shared instance
-        time.sleep(0.5)
+
 
     # Return result
     return {

@@ -130,7 +130,6 @@ def _handle_serve_destination(args):
             dest.announce(app_data=app_data)
         else:
             dest.announce()
-        time.sleep(0.5)  # Ensure announce is queued
 
     # Store reference to prevent GC
     hash_hex = dest.hash.hex()
@@ -229,13 +228,34 @@ def _resource_concluded(resource):
 
 
 def _handle_get_received_data(args):
-    """Return received data, optionally filtered by type and/or cleared."""
+    """Return received data, optionally filtered by type and/or cleared.
+
+    If timeout > 0, poll every 50ms until at least expected_count matching
+    items exist or the timeout expires.  timeout=0 (default) returns an
+    instant snapshot for backward compatibility.
+    """
     data_type = args.get("type")
     clear = args.get("clear", False)
-    if data_type:
-        result = [d for d in _received_data if d.get("type") == data_type]
+    timeout = args.get("timeout", 0)
+    expected_count = args.get("expected_count", 1)
+
+    def _snapshot():
+        if data_type:
+            return [d for d in _received_data if d.get("type") == data_type]
+        return list(_received_data)
+
+    if timeout > 0:
+        deadline = time.time() + timeout
+        while True:
+            result = _snapshot()
+            if len(result) >= expected_count:
+                break
+            if time.time() >= deadline:
+                break
+            time.sleep(0.05)
     else:
-        result = list(_received_data)
+        result = _snapshot()
+
     if clear:
         _received_data.clear()
     return result

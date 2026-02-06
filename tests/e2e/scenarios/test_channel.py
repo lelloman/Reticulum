@@ -10,7 +10,6 @@ Test IDs:
 """
 
 import pytest
-import time
 
 
 class TestChannelE2E:
@@ -113,8 +112,7 @@ class TestChannelE2E:
         assert result["message_sent"] is True
 
         # Check server-side received data
-        time.sleep(1.0)
-        received = node_c.get_received_data(data_type="channel_message")
+        received = node_c.get_received_data(data_type="channel_message", timeout=5.0)
         assert len(received) > 0, "No channel messages received on server"
 
         sent_hex = test_data.hex()

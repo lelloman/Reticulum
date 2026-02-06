@@ -22,7 +22,6 @@ Test IDs:
 """
 
 import pytest
-import time
 
 from helpers.docker_exec import exec_on_node
 
@@ -513,8 +512,7 @@ class TestProofStrategies:
         assert result["data_sent"] is True
 
         # Verify the proof_requested callback was invoked
-        time.sleep(1.0)
-        received = node_c.get_received_data(data_type="proof_requested")
+        received = node_c.get_received_data(data_type="proof_requested", timeout=5.0)
         # Note: PROVE_APP proof_requested_callback is on Destination, not Link.
         # It may be triggered for packet proofs specifically.
         # The key assertion is that the system handled PROVE_APP without error.

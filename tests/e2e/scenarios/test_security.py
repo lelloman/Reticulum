@@ -213,8 +213,7 @@ class TestResourceIntegrity:
         assert result["resource_completed"] is True
 
         # Verify received bytes match sent bytes (integrity)
-        time.sleep(1.0)
-        received = node_c.get_received_data(data_type="resource")
+        received = node_c.get_received_data(data_type="resource", timeout=5.0)
         assert len(received) > 0, "No resources received by node-c"
         sent_hex = test_data.hex()
         matching = [r for r in received if r["data_hex"] == sent_hex]

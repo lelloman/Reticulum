@@ -111,7 +111,7 @@ def run(args: dict) -> dict:
     if args.get("identify", False):
         local_identity = RNS.Identity()
         link.identify(local_identity)
-        time.sleep(1.0)
+        time.sleep(0.1)
         result["identification_sent"] = True
         result["local_identity_hash"] = local_identity.hash.hex()
 
@@ -138,9 +138,6 @@ def run(args: dict) -> dict:
 
                 if receipt.status == RNS.PacketReceipt.DELIVERED:
                     result["data_delivered"] = True
-
-        # Keep connection alive briefly to ensure data goes through
-        time.sleep(0.5)
 
     # Send resource if provided
     if resource_hex:
@@ -184,9 +181,6 @@ def run(args: dict) -> dict:
 
         if resource_state["failed"]:
             result["resource_error"] = "Resource transfer failed"
-
-        # Keep connection alive briefly for final packets
-        time.sleep(0.5)
 
     return result
 

@@ -203,7 +203,7 @@ class TestLinkSetupTime:
                 setup_times.append(t.duration_ms)
                 print(f"  Link {i}: Setup time = {t.duration_ms:.2f} ms")
 
-            time.sleep(0.5)
+            time.sleep(0.05)
 
         assert len(setup_times) >= 3, "Too few successful link setups"
 
@@ -300,7 +300,7 @@ class TestBenchmarkReport:
                     aspects=aspects,
                     timeout=15.0,
                 )
-            time.sleep(0.3)
+            time.sleep(0.05)
 
         # 2. Small data transfer
         for i in range(3):
@@ -314,7 +314,7 @@ class TestBenchmarkReport:
                     link_timeout=10.0,
                     data_timeout=5.0,
                 )
-            time.sleep(0.3)
+            time.sleep(0.05)
 
         # 3. Resource transfer
         for i in range(2):
@@ -328,7 +328,7 @@ class TestBenchmarkReport:
                     link_timeout=15.0,
                     resource_timeout=30.0,
                 )
-            time.sleep(0.5)
+            time.sleep(0.05)
 
         # Generate report
         from helpers.perf_utils import BenchmarkResult
