@@ -24,44 +24,47 @@ import time
 import os
 
 DOCKER_COMPOSE_DIR = os.path.join(os.path.dirname(__file__), "docker")
+SHARD = os.environ.get("SHARD", "0")
 
 TOPOLOGY_CONFIG = {
     "star": {
         "compose": "docker-compose.yml",
         "services": ["transport", "node-a", "node-c"],
-        "containers": ["rns-transport", "rns-node-a", "rns-node-c"],
+        "containers": [f"rns-transport-{SHARD}", f"rns-node-a-{SHARD}", f"rns-node-c-{SHARD}"],
     },
     "chain": {
         "compose": "docker-compose.chain.yml",
         "services": ["transport", "transport-2", "node-a", "node-d", "chain-link"],
-        "containers": ["rns-transport", "rns-transport-2", "rns-node-a", "rns-node-d", "rns-chain-link"],
+        "containers": [f"rns-transport-{SHARD}", f"rns-transport-2-{SHARD}", f"rns-node-a-{SHARD}", f"rns-node-d-{SHARD}", f"rns-chain-link-{SHARD}"],
     },
     "ring": {
         "compose": "docker-compose.ring.yml",
         "services": ["transport", "transport-2", "node-a", "node-c"],
-        "containers": ["rns-transport", "rns-transport-2", "rns-node-a", "rns-node-c"],
+        "containers": [f"rns-transport-{SHARD}", f"rns-transport-2-{SHARD}", f"rns-node-a-{SHARD}", f"rns-node-c-{SHARD}"],
     },
     "mesh": {
         "compose": "docker-compose.mesh.yml",
         "services": ["transport", "node-a", "node-b", "node-c", "node-d", "node-e"],
-        "containers": ["rns-transport", "rns-node-a", "rns-node-b", "rns-node-c", "rns-node-d", "rns-node-e"],
+        "containers": [f"rns-transport-{SHARD}", f"rns-node-a-{SHARD}", f"rns-node-b-{SHARD}", f"rns-node-c-{SHARD}", f"rns-node-d-{SHARD}", f"rns-node-e-{SHARD}"],
     },
 }
 
 
-def run_cmd(cmd, check=True, capture=False):
+def run_cmd(cmd, check=True, capture=False, env=None):
     """Run a command and return result."""
     print(f"+ {' '.join(cmd)}")
     if capture:
-        return subprocess.run(cmd, capture_output=True, text=True, check=check)
-    return subprocess.run(cmd, check=check)
+        return subprocess.run(cmd, capture_output=True, text=True, check=check, env=env)
+    return subprocess.run(cmd, check=check, env=env)
 
 
 def docker_compose(compose_file, *args):
     """Run docker compose command."""
-    cmd = ["docker", "compose", "-f", os.path.join(DOCKER_COMPOSE_DIR, compose_file)]
+    cmd = ["docker", "compose", "-f", os.path.join(DOCKER_COMPOSE_DIR, compose_file), "-p", f"rns-e2e-{SHARD}"]
     cmd.extend(args)
-    return run_cmd(cmd)
+    env = os.environ.copy()
+    env["SHARD"] = SHARD
+    return run_cmd(cmd, env=env)
 
 
 def check_container_healthy(container):
@@ -135,6 +138,7 @@ def do_run(args):
 
     env = os.environ.copy()
     env["TOPOLOGY"] = topology
+    env.setdefault("SHARD", SHARD)
 
     pytest_args = ["python", "-m", "pytest", "tests/e2e/scenarios/", "-v", "--tb=short", "-p", "no:cacheprovider"]
 

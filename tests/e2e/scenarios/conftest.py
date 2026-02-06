@@ -1,9 +1,11 @@
 """Pytest fixtures for E2E Docker tests."""
 
+import os
+os.environ.setdefault("SHARD", "0")
+
 import pytest
 import subprocess
 import time
-import os
 import sys
 
 # Add parent directory to path for imports

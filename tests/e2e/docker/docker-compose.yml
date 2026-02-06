@@ -3,7 +3,7 @@ services:
     build:
       context: ../../../
       dockerfile: tests/e2e/docker/Dockerfile
-    container_name: rns-transport
+    container_name: rns-transport-${SHARD:-0}
     hostname: transport
     cap_add:
       - NET_ADMIN
@@ -12,7 +12,7 @@ services:
       - transport-storage:/root/.reticulum/storage
     networks:
       rns-e2e:
-        ipv4_address: 172.28.0.10
+        ipv4_address: 172.28.${SHARD:-0}.10
     healthcheck:
       test: ["CMD", "rnstatus"]
       interval: 2s
@@ -24,7 +24,7 @@ services:
     build:
       context: ../../../
       dockerfile: tests/e2e/docker/Dockerfile
-    container_name: rns-node-a
+    container_name: rns-node-a-${SHARD:-0}
     hostname: node-a
     cap_add:
       - NET_ADMIN
@@ -33,7 +33,7 @@ services:
       - node-a-storage:/root/.reticulum/storage
     networks:
       rns-e2e:
-        ipv4_address: 172.28.0.11
+        ipv4_address: 172.28.${SHARD:-0}.11
     depends_on:
       transport:
         condition: service_healthy
@@ -48,7 +48,7 @@ services:
     build:
       context: ../../../
       dockerfile: tests/e2e/docker/Dockerfile
-    container_name: rns-node-c
+    container_name: rns-node-c-${SHARD:-0}
     hostname: node-c
     cap_add:
       - NET_ADMIN
@@ -57,7 +57,7 @@ services:
       - node-c-storage:/root/.reticulum/storage
     networks:
       rns-e2e:
-        ipv4_address: 172.28.0.12
+        ipv4_address: 172.28.${SHARD:-0}.12
     depends_on:
       transport:
         condition: service_healthy
@@ -72,7 +72,7 @@ services:
     build:
       context: ../../../
       dockerfile: tests/e2e/docker/Dockerfile
-    container_name: rns-test-runner
+    container_name: rns-test-runner-${SHARD:-0}
     volumes:
       - ../../../:/app:ro
       - /var/run/docker.sock:/var/run/docker.sock
@@ -90,6 +90,7 @@ services:
       - NODE_C_HOST=node-c
       - RESULTS_DIR=/results
       - TOPOLOGY=star
+      - SHARD=${SHARD:-0}
     entrypoint: ["python", "-m", "pytest", "tests/e2e/scenarios/", "-v", "--tb=short", "-p", "no:cacheprovider"]
 
 networks:
@@ -97,7 +98,7 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.28.0.0/16
+        - subnet: 172.28.${SHARD:-0}.0/24
 
 volumes:
   transport-storage:

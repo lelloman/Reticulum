@@ -2,17 +2,20 @@
 
 import os
 
+# Shard ID for parallel execution — each shard gets its own container set
+SHARD = os.environ.get("SHARD", "0")
+
 # Container names - Standard star topology
-CONTAINER_TRANSPORT = "rns-transport"
-CONTAINER_NODE_A = "rns-node-a"
-CONTAINER_NODE_C = "rns-node-c"
+CONTAINER_TRANSPORT = f"rns-transport-{SHARD}"
+CONTAINER_NODE_A = f"rns-node-a-{SHARD}"
+CONTAINER_NODE_C = f"rns-node-c-{SHARD}"
 
 # Container names - Extended topologies
-CONTAINER_TRANSPORT_2 = "rns-transport-2"
-CONTAINER_NODE_B = "rns-node-b"
-CONTAINER_NODE_D = "rns-node-d"
-CONTAINER_NODE_E = "rns-node-e"
-CONTAINER_CHAIN_LINK = "rns-chain-link"
+CONTAINER_TRANSPORT_2 = f"rns-transport-2-{SHARD}"
+CONTAINER_NODE_B = f"rns-node-b-{SHARD}"
+CONTAINER_NODE_D = f"rns-node-d-{SHARD}"
+CONTAINER_NODE_E = f"rns-node-e-{SHARD}"
+CONTAINER_CHAIN_LINK = f"rns-chain-link-{SHARD}"
 
 # Fixed test identities for reproducibility
 # These are test-only keys - DO NOT use in production

@@ -19,40 +19,44 @@ test-interop:
 # E2E Docker tests - real network testing with multiple nodes
 test-e2e-docker-build:
 	@echo Building Docker E2E test environment...
-	cd tests/e2e/docker && docker compose build
+	cd tests/e2e/docker && SHARD=0 docker compose -p rns-e2e-0 build
 
 test-e2e-docker-up: test-e2e-docker-build
 	@echo Starting Docker E2E test environment...
-	cd tests/e2e/docker && docker compose up -d transport node-a node-c
+	cd tests/e2e/docker && SHARD=0 docker compose -p rns-e2e-0 up -d transport node-a node-c
 	@echo Waiting for nodes to become healthy...
 	@sleep 5
-	@docker exec rns-node-a rnstatus || true
-	@docker exec rns-node-c rnstatus || true
+	@docker exec rns-node-a-0 rnstatus || true
+	@docker exec rns-node-c-0 rnstatus || true
 
 test-e2e-docker-down:
 	@echo Stopping Docker E2E test environment...
-	cd tests/e2e/docker && docker compose down -v
+	cd tests/e2e/docker && SHARD=0 docker compose -p rns-e2e-0 down -v
 
 test-e2e-docker: test-e2e-docker-up
 	@echo Running Docker E2E tests...
-	docker compose -f tests/e2e/docker/docker-compose.yml run --rm --entrypoint "python -m pytest tests/e2e/scenarios/ -v --tb=short" test-runner || true
+	SHARD=0 docker compose -f tests/e2e/docker/docker-compose.yml -p rns-e2e-0 run --rm --entrypoint "python -m pytest tests/e2e/scenarios/ -v --tb=short" test-runner || true
 	$(MAKE) test-e2e-docker-down
 
 test-e2e-docker-run:
 	@echo Running Docker E2E tests (environment must be up)...
-	python3 -m pytest tests/e2e/scenarios/ -v --tb=short
+	SHARD=0 python3 -m pytest tests/e2e/scenarios/ -v --tb=short
 
 test-e2e-docker-logs:
-	cd tests/e2e/docker && docker compose logs -f
+	cd tests/e2e/docker && SHARD=0 docker compose -p rns-e2e-0 logs -f
 
 test-e2e-docker-shell-a:
-	docker exec -it rns-node-a /bin/bash
+	docker exec -it rns-node-a-$${SHARD:-0} /bin/bash
 
 test-e2e-docker-shell-c:
-	docker exec -it rns-node-c /bin/bash
+	docker exec -it rns-node-c-$${SHARD:-0} /bin/bash
 
 test-e2e-docker-shell-transport:
-	docker exec -it rns-transport /bin/bash
+	docker exec -it rns-transport-$${SHARD:-0} /bin/bash
+
+test-e2e-docker-parallel:
+	@echo Running parallel Docker E2E tests...
+	./tests/e2e/run_parallel.sh
 
 clean:
 	@echo Cleaning...
