@@ -82,8 +82,15 @@ class TestLinkE2E:
 
         assert result["status"] == "ACTIVE"
         assert result["data_sent"] is True
-        # Note: delivered confirmation depends on the receiver setting up proof
-        # For this test, we just verify the packet was sent successfully
+
+        # Verify receiver got the data
+        time.sleep(1.0)
+        received = node_c.get_received_data(data_type="packet")
+        assert len(received) > 0, "No packets received by node-c"
+        # Find our data in received packets
+        sent_hex = test_data.hex()
+        matching = [r for r in received if r["data_hex"] == sent_hex]
+        assert len(matching) > 0, f"Sent data not found in received packets. Sent: {sent_hex}"
 
     def test_link_from_both_directions(self, node_a, node_c, unique_app_name):
         """
@@ -184,3 +191,50 @@ class TestLinkE2E:
 
         # Links should be different
         assert link1["link_id"] != link2["link_id"]
+
+    def test_link_teardown(self, node_a, node_c, unique_app_name):
+        """
+        E2E-LINK-003: Link teardown is propagated to remote end.
+
+        1. Establish link
+        2. Teardown from initiator side
+        3. Verify remote side sees link closed
+        """
+        aspects = ["link", "teardown"]
+
+        dest = node_c.start_destination_server(
+            app_name=unique_app_name,
+            aspects=aspects,
+            announce=True,
+        )
+
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+
+        # Create link
+        link = node_a.create_link(
+            destination_hash=dest["destination_hash"],
+            app_name=unique_app_name,
+            aspects=aspects,
+            timeout=15.0,
+        )
+        assert link["status"] == "ACTIVE"
+        link_id = link["link_id"]
+
+        # Verify link is active on server side
+        active = node_c.get_active_links()
+        server_link_ids = [l["link_id"] for l in active]
+        assert link_id in server_link_ids, "Link not found on server side"
+
+        # Close link from client side (via Transport)
+        node_a.close_link(link_id)
+        time.sleep(2.0)
+
+        # Verify link is gone on server side
+        active_after = node_c.get_active_links()
+        server_link_ids_after = [l["link_id"] for l in active_after]
+        assert link_id not in server_link_ids_after, "Link still active on server after teardown"
+
+        # Verify a close event was recorded
+        events = node_c.get_link_events()
+        close_events = [e for e in events if e["link_id"] == link_id]
+        assert len(close_events) > 0, "No link close event recorded"

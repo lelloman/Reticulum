@@ -171,11 +171,16 @@ class TestRingTopology:
 
         assert link["status"] == "ACTIVE"
 
+    @pytest.mark.chaos
     def test_ring_failover(self, node_a, node_c, transport_node, unique_app_name):
         """
-        TOPO-004: Failover when primary path fails.
+        TOPO-004: Failover when primary transport fails.
 
-        This test requires network chaos capabilities.
+        1. Establish link A -> C (works through T1 or T2)
+        2. Stop T1
+        3. Re-announce from C
+        4. Establish new link A -> C (should route through T2)
+        5. Restore T1
         """
         aspects = ["topology", "ring", "failover"]
 
@@ -187,18 +192,37 @@ class TestRingTopology:
 
         node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
-        # First verify link works
+        # Verify initial link works
         link1 = node_a.create_link(
             destination_hash=dest["destination_hash"],
             app_name=unique_app_name,
             aspects=aspects,
             timeout=15.0,
         )
-        assert link1["status"] == "ACTIVE"
+        assert link1["status"] == "ACTIVE", f"Initial link failed: {link1}"
 
-        # Note: Full failover test would require stopping one transport
-        # and verifying traffic routes through the other.
-        # This is left as a placeholder for when network chaos is available.
+        # Stop primary transport
+        stop_result = transport_node.stop_rnsd()
+        assert stop_result["success"], f"Failed to stop transport: {stop_result}"
+
+        time.sleep(3.0)  # Allow network to settle
+
+        # Re-announce from node-c to refresh routes
+        node_c.announce(dest["destination_hash"])
+        time.sleep(3.0)
+
+        # Establish new link (should route through T2)
+        link2 = node_a.create_link(
+            destination_hash=dest["destination_hash"],
+            app_name=unique_app_name,
+            aspects=aspects,
+            timeout=20.0,
+        )
+        assert link2["status"] == "ACTIVE", f"Failover link failed: {link2}"
+
+        # Restore T1
+        start_result = transport_node.start_rnsd()
+        assert start_result["success"], f"Failed to restart transport: {start_result}"
 
 
 # ============================================================

@@ -68,10 +68,11 @@ class TestThroughput:
         benchmark = metrics.get_benchmark()
         assert benchmark.count > 0, "No successful transfers"
 
-        # Report throughput (no strict assertion, just establish baseline)
+        # Report throughput with regression guard
         if throughputs:
             avg_kbps = sum(t["kbps"] for t in throughputs) / len(throughputs)
             print(f"\nAverage throughput: {avg_kbps:.2f} kbps")
+            assert avg_kbps > 0.5, f"Throughput regression: {avg_kbps:.2f} kbps < 0.5 kbps minimum"
 
 
 @pytest.mark.performance
@@ -207,10 +208,12 @@ class TestLinkSetupTime:
         assert len(setup_times) >= 3, "Too few successful link setups"
 
         benchmark = metrics.get_benchmark()
+        avg_ms = benchmark.mean
         print(f"\nLink Setup Time Statistics:")
-        print(f"  Mean: {benchmark.mean:.2f} ms")
+        print(f"  Mean: {avg_ms:.2f} ms")
         print(f"  Min:  {benchmark.min:.2f} ms")
         print(f"  Max:  {benchmark.max:.2f} ms")
+        assert avg_ms < 10000, f"Link setup regression: {avg_ms:.0f}ms avg > 10000ms limit"
 
 
 @pytest.mark.performance
@@ -262,6 +265,9 @@ class TestAnnouncePropagation:
             print(f"\nAverage Propagation Time: {avg:.2f} ms")
 
         assert len(propagation_times) >= 1, "No successful propagation measurements"
+        if propagation_times:
+            avg_prop = sum(propagation_times) / len(propagation_times)
+            assert avg_prop < 8000, f"Announce propagation regression: {avg_prop:.0f}ms avg > 8000ms limit"
 
 
 @pytest.mark.performance

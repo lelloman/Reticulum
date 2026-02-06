@@ -53,7 +53,11 @@ class TestMultipleLinks:
 
         # Verify all links established
         active_links = [l for l in links if l["status"] == "ACTIVE"]
-        assert len(active_links) >= 3, f"Only {len(active_links)} of 5 links active"
+        failed_links = [l for l in links if l["status"] != "ACTIVE"]
+        assert len(active_links) >= 4, (
+            f"Only {len(active_links)} of 5 links active. "
+            f"Failed: {[{'status': l['status'], 'error': l.get('error')} for l in failed_links]}"
+        )
 
         # Verify unique link IDs
         link_ids = [l["link_id"] for l in active_links]
@@ -128,8 +132,8 @@ class TestParallelResources:
             elif result and result.get("resource_completed"):
                 completed += 1
 
-        # At least some transfers should complete
-        assert completed >= 1, f"Only {completed} of 3 transfers completed"
+        # At least 2 of 3 transfers should complete
+        assert completed >= 2, f"Only {completed} of 3 parallel transfers completed"
 
 
 @pytest.mark.concurrent
@@ -288,13 +292,17 @@ class TestBidirectionalTraffic:
             direction, result = results.get_nowait()
             transfer_results[direction] = result
 
-        # At least one direction should succeed
+        # Both directions should succeed
         success_count = sum(
             1 for r in transfer_results.values()
             if r.get("status") == "ACTIVE" and r.get("data_sent")
         )
 
-        assert success_count >= 1, f"No successful transfers: {transfer_results}"
+        failed = {d: r for d, r in transfer_results.items()
+                  if r.get("status") != "ACTIVE" or not r.get("data_sent")}
+        assert success_count >= 2, (
+            f"Only {success_count} of 2 directions succeeded. Failed: {failed}"
+        )
 
 
 @pytest.mark.concurrent
@@ -337,5 +345,9 @@ class TestLinkPool:
 
             time.sleep(0.2)
 
-        # At least one transfer should succeed
-        assert successful_transfers >= 1, f"No transfers succeeded: {results}"
+        # At least 2 of 3 transfers should succeed
+        failed = [r for r in results if r.get("status") != "ACTIVE" or not r.get("data_sent")]
+        assert successful_transfers >= 2, (
+            f"Only {successful_transfers} of 3 sequential transfers succeeded. "
+            f"Failed: {[{'status': r.get('status'), 'error': r.get('error')} for r in failed]}"
+        )

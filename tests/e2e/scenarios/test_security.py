@@ -212,6 +212,14 @@ class TestResourceIntegrity:
         assert result["status"] == "ACTIVE"
         assert result["resource_completed"] is True
 
+        # Verify received bytes match sent bytes (integrity)
+        time.sleep(1.0)
+        received = node_c.get_received_data(data_type="resource")
+        assert len(received) > 0, "No resources received by node-c"
+        sent_hex = test_data.hex()
+        matching = [r for r in received if r["data_hex"] == sent_hex]
+        assert len(matching) > 0, "Resource integrity check failed: received data does not match sent data"
+
 
 @pytest.mark.security
 class TestUnauthorizedAccess:
@@ -247,6 +255,79 @@ class TestUnauthorizedAccess:
 
         # Should timeout gracefully
         assert "error" in link or link["status"] in ["NO_PATH", "TIMEOUT"]
+
+
+@pytest.mark.security
+class TestMaliciousInjection:
+    """Test system resilience against malformed packet injection."""
+
+    def test_malicious_packet_injection(self, node_a, unique_app_name):
+        """
+        SEC-001c: System survives injection of all malformed packet types.
+
+        Uses MaliciousInterface to inject truncated, oversized, zero, random,
+        invalid_header, and invalid_hash packets.
+        """
+        from helpers.docker_exec import exec_on_node
+
+        result = exec_on_node(
+            node_a.container,
+            "advanced_features",
+            {
+                "operation": "inject_malformed",
+                "app_name": unique_app_name,
+                "aspects": ["security", "inject"],
+            },
+            timeout=30,
+        )
+
+        assert result.get("success"), f"Injection test failed: {result.get('error')}"
+        assert result["total_injected"] >= 4, (
+            f"Only {result['total_injected']} of 6 injection types succeeded: {result['injections']}"
+        )
+        assert result["system_operational"], "System not operational after malformed packet injection"
+
+    def test_system_operational_after_injection(self, node_a, node_c, unique_app_name):
+        """
+        SEC-001d: After malformed injection, normal link + data transfer still works.
+        """
+        from helpers.docker_exec import exec_on_node
+
+        # First inject malformed packets
+        inject_result = exec_on_node(
+            node_a.container,
+            "advanced_features",
+            {
+                "operation": "inject_malformed",
+                "app_name": unique_app_name,
+                "aspects": ["security", "post_inject"],
+            },
+            timeout=30,
+        )
+        assert inject_result.get("system_operational"), "System broken by injection"
+
+        # Now verify normal operations work
+        aspects = ["security", "post_inject", "verify"]
+
+        dest = node_c.start_destination_server(
+            app_name=unique_app_name,
+            aspects=aspects,
+            announce=True,
+        )
+
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+
+        result = node_a.create_link_and_send(
+            destination_hash=dest["destination_hash"],
+            app_name=unique_app_name,
+            data=b"Post-injection test data",
+            aspects=aspects,
+            link_timeout=15.0,
+            data_timeout=5.0,
+        )
+
+        assert result["status"] == "ACTIVE", f"Link failed after injection: {result}"
+        assert result["data_sent"] is True, "Data send failed after injection"
 
 
 @pytest.mark.security

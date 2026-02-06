@@ -191,6 +191,152 @@ def test_group_destination(args: dict) -> dict:
     }
 
 
+def test_group_create_and_key(args: dict) -> dict:
+    """Create a GROUP destination with auto-generated key."""
+    rns = RNS.Reticulum()
+
+    app_name = args["app_name"]
+    aspects = args.get("aspects", [])
+
+    destination = RNS.Destination(
+        None,
+        RNS.Destination.IN,
+        RNS.Destination.GROUP,
+        app_name,
+        *aspects
+    )
+
+    # Create encryption keys for the group
+    destination.create_keys()
+
+    return {
+        "success": True,
+        "destination_hash": destination.hash.hex(),
+        "type": "GROUP",
+        "group_key_hex": destination.get_private_key().hex() if hasattr(destination, 'get_private_key') and destination.get_private_key() else "",
+    }
+
+
+def test_plain_destination(args: dict) -> dict:
+    """Create a PLAIN destination."""
+    rns = RNS.Reticulum()
+
+    app_name = args["app_name"]
+    aspects = args.get("aspects", [])
+
+    destination = RNS.Destination(
+        None,
+        RNS.Destination.IN,
+        RNS.Destination.PLAIN,
+        app_name,
+        *aspects
+    )
+
+    return {
+        "success": True,
+        "destination_hash": destination.hash.hex(),
+        "type": "PLAIN",
+    }
+
+
+def test_ratchet_rotate(args: dict) -> dict:
+    """Force ratchet rotation and return new ratchet ID."""
+    import os
+    import tempfile
+
+    rns = RNS.Reticulum()
+
+    app_name = args["app_name"]
+    aspects = args.get("aspects", [])
+
+    identity = RNS.Identity()
+
+    destination = RNS.Destination(
+        identity,
+        RNS.Destination.IN,
+        RNS.Destination.SINGLE,
+        app_name,
+        *aspects
+    )
+
+    ratchets_path = os.path.join(tempfile.gettempdir(), f"ratchets_{destination.hash.hex()}")
+
+    try:
+        destination.enable_ratchets(ratchets_path)
+    except Exception as e:
+        return {"success": False, "error": f"Failed to enable ratchets: {e}"}
+
+    ratchet_id_before = RNS.Identity.current_ratchet_id(destination.hash)
+
+    # Force rotation
+    try:
+        destination.rotate_ratchets()
+    except Exception as e:
+        return {"success": False, "error": f"Failed to rotate ratchets: {e}"}
+
+    ratchet_id_after = RNS.Identity.current_ratchet_id(destination.hash)
+
+    return {
+        "success": True,
+        "destination_hash": destination.hash.hex(),
+        "ratchet_id_before": ratchet_id_before.hex() if ratchet_id_before else None,
+        "ratchet_id_after": ratchet_id_after.hex() if ratchet_id_after else None,
+        "rotated": ratchet_id_before != ratchet_id_after if (ratchet_id_before and ratchet_id_after) else True,
+    }
+
+
+def test_inject_malformed(args: dict) -> dict:
+    """Inject malformed packets via MaliciousInterface and verify system survives."""
+    rns = RNS.Reticulum()
+
+    sys.path.insert(0, "/app/interfaces")
+    try:
+        from malicious_interface import MaliciousInterface
+    except ImportError:
+        # Try alternate location
+        sys.path.insert(0, "/app/tests/e2e/interfaces")
+        from malicious_interface import MaliciousInterface
+
+    iface = MaliciousInterface(owner=RNS.Reticulum.get_instance(), name="MalTestIface")
+
+    malformation_types = ["truncated", "oversized", "zero", "random", "invalid_header", "invalid_hash"]
+    injection_results = {}
+
+    for mtype in malformation_types:
+        try:
+            packet_data = iface.inject_malformed_packet(mtype)
+            injection_results[mtype] = {
+                "injected": True,
+                "size": len(packet_data),
+            }
+        except Exception as e:
+            injection_results[mtype] = {
+                "injected": False,
+                "error": str(e),
+            }
+
+    # Verify system is still operational
+    try:
+        test_identity = RNS.Identity()
+        test_dest = RNS.Destination(
+            test_identity,
+            RNS.Destination.IN,
+            RNS.Destination.SINGLE,
+            args.get("app_name", "malicious_test"),
+            *args.get("aspects", ["inject", "test"])
+        )
+        system_operational = True
+    except Exception as e:
+        system_operational = False
+
+    return {
+        "success": True,
+        "injections": injection_results,
+        "system_operational": system_operational,
+        "total_injected": sum(1 for r in injection_results.values() if r.get("injected")),
+    }
+
+
 def run(args: dict) -> dict:
     """
     Execute an advanced feature test.
@@ -209,6 +355,14 @@ def run(args: dict) -> dict:
         return test_proof_strategy(args)
     elif operation == "group_destination":
         return test_group_destination(args)
+    elif operation == "group_create_and_key":
+        return test_group_create_and_key(args)
+    elif operation == "plain_destination":
+        return test_plain_destination(args)
+    elif operation == "ratchet_rotate":
+        return test_ratchet_rotate(args)
+    elif operation == "inject_malformed":
+        return test_inject_malformed(args)
     else:
         return {"error": f"Unknown operation: {operation}", "success": False}
 

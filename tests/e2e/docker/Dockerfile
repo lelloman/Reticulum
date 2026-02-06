@@ -34,5 +34,8 @@ RUN mkdir -p /root/.reticulum /app/scripts
 # Copy control scripts
 COPY tests/e2e/scripts/ /app/scripts/
 
+# Copy test interfaces (MaliciousInterface, CaptureInterface, etc.)
+COPY tests/e2e/interfaces/ /app/interfaces/
+
 # Default: run rnsd daemon
 CMD ["rnsd", "-v"]

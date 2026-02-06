@@ -250,12 +250,57 @@ class NodeInterface:
             "register_handler": register_handler,
         })
 
+    def get_received_data(self, data_type: Optional[str] = None, clear: bool = False) -> list:
+        """
+        Get data received by the daemon on this node.
+
+        Args:
+            data_type: Filter by type ("packet", "resource", "channel_message", "buffer_data", "request", "proof_requested")
+            clear: Whether to clear received data after fetching
+
+        Returns:
+            list of received data dicts
+        """
+        args = {"clear": clear}
+        if data_type:
+            args["type"] = data_type
+        return exec_on_node(self.container, "get_received_data", args)
+
+    def clear_received_data(self) -> dict:
+        """Clear all received data on this node."""
+        return exec_on_node(self.container, "clear_received_data", {})
+
+    def get_link_events(self) -> list:
+        """Get link closed events."""
+        return exec_on_node(self.container, "get_link_events", {})
+
+    def get_active_links(self) -> list:
+        """Get currently active links on this node."""
+        return exec_on_node(self.container, "get_active_links", {})
+
+    def close_link(self, link_id: str) -> dict:
+        """
+        Close a link by its link_id hex.
+
+        Args:
+            link_id: Hex-encoded link ID
+
+        Returns:
+            dict with closed status
+        """
+        return exec_on_node(self.container, "close_link", {"link_id": link_id})
+
     def start_destination_server(
         self,
         app_name: str,
         aspects: Optional[list] = None,
         announce: bool = True,
         app_data: Optional[str] = None,
+        channel_mode: bool = False,
+        buffer_mode: bool = False,
+        request_handler_mode: bool = False,
+        proof_strategy: str = "PROVE_ALL",
+        request_path: str = "/echo",
     ) -> dict:
         """
         Start a destination server that accepts incoming links.
@@ -268,6 +313,11 @@ class NodeInterface:
             aspects: List of aspect strings
             announce: Whether to announce the destination (default True)
             app_data: App data to include in announce
+            channel_mode: Set up channel echo server
+            buffer_mode: Set up buffer echo server
+            request_handler_mode: Register request handler
+            proof_strategy: PROVE_NONE, PROVE_APP, or PROVE_ALL
+            request_path: Path for request handler (default "/echo")
 
         Returns:
             dict with destination_hash, identity_hex, name
@@ -278,6 +328,15 @@ class NodeInterface:
             "announce": announce,
             "app_data": app_data,
         }
+        if channel_mode:
+            args["channel_mode"] = True
+        if buffer_mode:
+            args["buffer_mode"] = True
+        if request_handler_mode:
+            args["request_handler_mode"] = True
+            args["request_path"] = request_path
+        if proof_strategy != "PROVE_ALL":
+            args["proof_strategy"] = proof_strategy
 
         result = exec_on_node(self.container, "serve_destination", args, timeout=15)
 
@@ -549,6 +608,113 @@ class NodeInterface:
             "destination_hash": destination_hash,
             "timeout": timeout,
         }, timeout=int(timeout) + 5)
+
+    # ========== Channel / Buffer / Request Methods ==========
+
+    def channel_send(
+        self,
+        destination_hash: str,
+        app_name: str,
+        message_data: bytes,
+        aspects: Optional[list] = None,
+        wait_reply: bool = True,
+        timeout: float = 15.0,
+    ) -> dict:
+        """
+        Send a channel message and optionally wait for a reply.
+
+        Args:
+            destination_hash: Hex-encoded destination hash
+            app_name: Application name
+            message_data: Data to send as TestMessage
+            aspects: Aspect strings
+            wait_reply: Whether to wait for EchoMessage reply
+            timeout: Overall timeout
+
+        Returns:
+            dict with link_id, status, message_sent, reply_received, reply_data_hex
+        """
+        if isinstance(message_data, str):
+            message_data = message_data.encode("utf-8")
+        return exec_on_node(self.container, "channel_messaging", {
+            "destination_hash": destination_hash,
+            "app_name": app_name,
+            "aspects": aspects or [],
+            "data_hex": message_data.hex(),
+            "wait_reply": wait_reply,
+            "timeout": timeout,
+        }, timeout=int(timeout) + 10)
+
+    def buffer_stream(
+        self,
+        destination_hash: str,
+        app_name: str,
+        data: bytes,
+        aspects: Optional[list] = None,
+        stream_id: int = 0,
+        expect_echo: bool = True,
+        timeout: float = 15.0,
+    ) -> dict:
+        """
+        Write data via Buffer API and optionally read echo back.
+
+        Args:
+            destination_hash: Hex-encoded destination hash
+            app_name: Application name
+            data: Data to write
+            aspects: Aspect strings
+            stream_id: Writer stream ID (reader uses stream_id + 1)
+            expect_echo: Whether to read echo back
+            timeout: Overall timeout
+
+        Returns:
+            dict with link_id, status, bytes_written, bytes_received, received_hex
+        """
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+        return exec_on_node(self.container, "buffer_stream", {
+            "destination_hash": destination_hash,
+            "app_name": app_name,
+            "aspects": aspects or [],
+            "data_hex": data.hex(),
+            "stream_id": stream_id,
+            "expect_echo": expect_echo,
+            "timeout": timeout,
+        }, timeout=int(timeout) + 10)
+
+    def request_response(
+        self,
+        destination_hash: str,
+        app_name: str,
+        request_data: bytes,
+        aspects: Optional[list] = None,
+        request_path: str = "/echo",
+        timeout: float = 15.0,
+    ) -> dict:
+        """
+        Send a request and wait for response via Link.request().
+
+        Args:
+            destination_hash: Hex-encoded destination hash
+            app_name: Application name
+            request_data: Data to send
+            aspects: Aspect strings
+            request_path: Request handler path
+            timeout: Overall timeout
+
+        Returns:
+            dict with link_id, request_sent, response_received, response_data_hex
+        """
+        if isinstance(request_data, str):
+            request_data = request_data.encode("utf-8")
+        return exec_on_node(self.container, "request_response", {
+            "destination_hash": destination_hash,
+            "app_name": app_name,
+            "aspects": aspects or [],
+            "data_hex": request_data.hex(),
+            "request_path": request_path,
+            "timeout": timeout,
+        }, timeout=int(timeout) + 10)
 
     # ========== CLI Tool Methods ==========
 
