@@ -141,6 +141,10 @@ def run(args: dict) -> dict:
 
     # Send resource if provided
     if resource_hex:
+        # Brief delay to let the server's link_established callback thread
+        # register ACCEPT_ALL and resource_concluded before the advertisement
+        # arrives.  The callback runs in a daemon thread (Link.py:447-449).
+        time.sleep(0.2)
         resource_data = bytes.fromhex(resource_hex)
 
         # Track resource progress

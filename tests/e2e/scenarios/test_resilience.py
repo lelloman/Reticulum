@@ -127,6 +127,18 @@ class TestPacketLoss:
         except RuntimeError:
             pytest.skip("Network chaos not available")
 
+        # Brief pause to let tc rules stabilise before RNS traffic
+        time.sleep(1)
+
+        # Re-verify path is still cached after chaos was applied.
+        # Applying tc netem can occasionally cause the rnsd TCP
+        # connection to hiccup, which may invalidate cached paths.
+        path = node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+        if not path.get("path_found"):
+            node_c.announce(dest["destination_hash"])
+            path = node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+            assert path.get("path_found"), f"Path lost after chaos: {path}"
+
         # Smaller data for faster test
         test_data = b"B" * 500
 

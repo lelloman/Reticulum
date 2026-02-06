@@ -7,13 +7,14 @@ NOTE: This is for testing purposes only. Do not use in production.
 """
 
 import RNS
+from RNS.Interfaces.Interface import Interface
 import os
 import time
 import threading
 from typing import Optional, Callable, List, Any
 
 
-class MaliciousInterface(RNS.Interfaces.Interface):
+class MaliciousInterface(Interface):
     """
     An interface that can inject malformed packets for security testing.
 
@@ -25,7 +26,7 @@ class MaliciousInterface(RNS.Interfaces.Interface):
         self,
         owner: Any,
         name: str = "MaliciousInterface",
-        target_interface: Optional[RNS.Interfaces.Interface] = None,
+        target_interface: Optional[Interface] = None,
     ):
         """
         Initialize the malicious interface.
@@ -67,8 +68,8 @@ class MaliciousInterface(RNS.Interfaces.Interface):
         if self.on_packet_captured:
             self.on_packet_captured(data)
 
-        # Pass to Reticulum for processing
-        self.owner.inbound(data, self)
+        # Pass to Transport for processing
+        RNS.Transport.inbound(data, self)
 
     def process_outgoing(self, data: bytes):
         """Process outgoing data."""

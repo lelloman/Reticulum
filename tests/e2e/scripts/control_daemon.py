@@ -223,8 +223,22 @@ def _resource_started(resource):
 
 
 def _resource_concluded(resource):
-    if resource.status == RNS.Resource.COMPLETE:
-        _received_data.append({"type": "resource", "size": len(resource.data), "data_hex": resource.data.hex()})
+    try:
+        if resource.status == RNS.Resource.COMPLETE:
+            data = resource.data
+            if data is None:
+                _received_data.append({"type": "resource", "size": 0, "data_hex": ""})
+            elif hasattr(data, "read"):
+                # Received resources provide data as an open file object;
+                # read it now before RNS closes and deletes the file.
+                raw = data.read()
+                _received_data.append({"type": "resource", "size": len(raw), "data_hex": raw.hex()})
+            else:
+                _received_data.append({"type": "resource", "size": len(data), "data_hex": data.hex()})
+        else:
+            _received_data.append({"type": "resource", "size": 0, "data_hex": "", "status": str(resource.status)})
+    except Exception:
+        _received_data.append({"type": "resource", "size": -1, "data_hex": "", "error": "callback_exception"})
 
 
 def _handle_get_received_data(args):

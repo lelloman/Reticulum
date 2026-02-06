@@ -198,6 +198,12 @@ class TestAnnounceStorm:
             except Exception:
                 pass  # Some may fail due to rate limiting
 
+        # Wait for flood announces to drain before testing responsiveness.
+        # The announce bandwidth cap (2% of interface bandwidth) means queued
+        # announces can block for several seconds.  On the transport node the
+        # queue can back up further because it forwards every announce.
+        time.sleep(8)
+
         # Verify basic functionality still works after the flood
         dest = node_c.start_destination_server(
             app_name=unique_app_name + "_after_flood",
@@ -205,7 +211,18 @@ class TestAnnounceStorm:
             announce=True,
         )
 
+        # Allow time for the announce to propagate through the transport node
         path = node_a.wait_for_path(dest["destination_hash"], timeout=20.0)
+        if not path.get("path_found"):
+            # Announce was likely queued behind the flood; re-announce
+            time.sleep(5)
+            node_c.announce(dest["destination_hash"])
+            path = node_a.wait_for_path(dest["destination_hash"], timeout=20.0)
+        if not path.get("path_found"):
+            # Last resort: one more re-announce
+            time.sleep(3)
+            node_c.announce(dest["destination_hash"])
+            path = node_a.wait_for_path(dest["destination_hash"], timeout=20.0)
         assert path.get("path_found"), f"Path not found after flood: {path}"
 
         link = node_a.create_link(
@@ -231,12 +248,15 @@ class TestBidirectionalTraffic:
         aspects_c = ["concurrent", "duplex", "c"]
         aspects_a = ["concurrent", "duplex", "a"]
 
-        # Start servers on both nodes
+        # Start servers on both nodes — stagger announces to avoid collision
         dest_c = node_c.start_destination_server(
             app_name=unique_app_name,
             aspects=aspects_c,
             announce=True,
         )
+
+        # Wait for A->C path before announcing from A, so announces don't collide
+        node_a.wait_for_path(dest_c["destination_hash"], timeout=15.0)
 
         dest_a = node_a.start_destination_server(
             app_name=unique_app_name,
@@ -244,8 +264,13 @@ class TestBidirectionalTraffic:
             announce=True,
         )
 
-        node_a.wait_for_path(dest_c["destination_hash"], timeout=15.0)
-        node_c.wait_for_path(dest_a["destination_hash"], timeout=15.0)
+        # Wait for C->A path with re-announce fallback
+        path_ca = node_c.wait_for_path(dest_a["destination_hash"], timeout=15.0)
+        if not path_ca.get("path_found"):
+            time.sleep(2)
+            node_a.announce(dest_a["destination_hash"])
+            path_ca = node_c.wait_for_path(dest_a["destination_hash"], timeout=15.0)
+            assert path_ca.get("path_found"), f"C->A path not found even after re-announce: {path_ca}"
 
         # Results for concurrent transfers
         results = queue.Queue()

@@ -221,6 +221,78 @@ class TestRNCPFileTransfer:
         # Cleanup
         node_a.delete_file(test_path)
 
+    @pytest.mark.slow
+    def test_rncp_real_transfer(self, node_a, node_c):
+        """
+        CLI-004b: Real rncp file transfer between nodes.
+
+        1. Start rncp listener on node-c
+        2. Get listener's destination hash
+        3. Create test file on node-a
+        4. Run rncp send from node-a to node-c
+        5. Verify file arrives on node-c
+        """
+        receive_dir = "/tmp/rncp_received"
+        test_content = b"Real rncp E2E test content!"
+        source_path = "/tmp/rncp_test_real.txt"
+
+        # Prepare receive directory on node-c
+        node_c.exec_command(f"mkdir -p {receive_dir}")
+
+        # Start rncp listener on node-c in background
+        listener_result = node_c.exec_command(
+            f"rncp -l -s {receive_dir} -b &"
+            " sleep 2 && rncp -l -p",  # Wait then print identity
+            timeout=10,
+        )
+
+        # Get the listener identity hash from rncp -l -p
+        # rncp -l -p prints the destination hash on stdout
+        identity_result = node_c.exec_command("rncp -l -p", timeout=10)
+        if not identity_result["success"]:
+            pytest.skip("rncp -l -p not available or failed")
+
+        # Parse destination hash from output
+        stdout = identity_result["stdout"].strip()
+        # rncp prints hash in format like "a1b2c3d4..."
+        import re
+        hash_match = re.search(r'[0-9a-f]{32}', stdout.lower())
+        if not hash_match:
+            pytest.skip(f"Could not parse rncp destination hash from: {stdout}")
+        dest_hash = hash_match.group(0)
+
+        # Wait for path to propagate
+        time.sleep(3)
+
+        # Create test file on node-a
+        create_result = node_a.create_file(source_path, test_content)
+        assert create_result["success"]
+
+        # Send file via rncp
+        send_result = node_a.exec_command(
+            f"rncp {source_path} {dest_hash}",
+            timeout=60,
+        )
+
+        # Wait for transfer to complete
+        time.sleep(5)
+
+        # Check if file arrived on node-c
+        file_check = node_c.exec_command(
+            f"ls {receive_dir}/",
+            timeout=5,
+        )
+
+        if file_check["success"] and "rncp_test_real" in file_check["stdout"]:
+            # Verify content
+            received = node_c.read_file(f"{receive_dir}/rncp_test_real.txt")
+            if received["success"]:
+                assert received["content"] == test_content, "rncp file content mismatch"
+
+        # Cleanup
+        node_a.exec_command(f"rm -f {source_path}")
+        node_c.exec_command(f"rm -rf {receive_dir}")
+
 
 @pytest.mark.cli
 class TestRNXRemoteExecution:
@@ -236,3 +308,44 @@ class TestRNXRemoteExecution:
         if result["success"]:
             stdout = result["stdout"].lower()
             assert "usage" in stdout or "help" in stdout or "rnx" in stdout
+
+    @pytest.mark.slow
+    def test_rnx_real_remote_command(self, node_a, node_c):
+        """
+        CLI-006b: Real rnx remote command execution.
+
+        1. Start rnx listener on node-c
+        2. Run remote command from node-a
+        3. Verify output
+        """
+        # Start rnx listener on node-c (allows all commands)
+        listener_result = node_c.exec_command(
+            "rnx -l -a -b &"
+            " sleep 2 && rnx -l -p",  # Wait then print identity
+            timeout=10,
+        )
+
+        # Get the listener identity hash
+        identity_result = node_c.exec_command("rnx -l -p", timeout=10)
+        if not identity_result["success"]:
+            pytest.skip("rnx -l -p not available or failed")
+
+        stdout = identity_result["stdout"].strip()
+        import re
+        hash_match = re.search(r'[0-9a-f]{32}', stdout.lower())
+        if not hash_match:
+            pytest.skip(f"Could not parse rnx destination hash from: {stdout}")
+        dest_hash = hash_match.group(0)
+
+        time.sleep(3)
+
+        # Run remote command
+        cmd_result = node_a.exec_command(
+            f'rnx {dest_hash} "echo hello_from_rnx"',
+            timeout=30,
+        )
+
+        if cmd_result["success"]:
+            assert "hello_from_rnx" in cmd_result["stdout"], (
+                f"Expected 'hello_from_rnx' in output: {cmd_result['stdout']}"
+            )

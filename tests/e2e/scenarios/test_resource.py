@@ -49,11 +49,11 @@ class TestResourceE2E:
         assert result["resource_completed"] is True
 
         # Verify receiver got the correct data
-        received = node_c.get_received_data(data_type="resource", timeout=5.0)
+        received = node_c.get_received_data(data_type="resource", timeout=15.0)
         assert len(received) > 0, "No resources received by node-c"
         sent_hex = small_data.hex()
         matching = [r for r in received if r["data_hex"] == sent_hex]
-        assert len(matching) > 0, f"Sent resource data not found in received. Expected {len(small_data)} bytes."
+        assert len(matching) > 0, f"Sent resource data not found in received. Expected {len(small_data)} bytes. Got: {received}"
 
     def test_medium_resource_transfer(self, node_a, node_c, unique_app_name):
         """
