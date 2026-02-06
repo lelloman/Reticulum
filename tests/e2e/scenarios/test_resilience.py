@@ -20,10 +20,19 @@ from helpers.docker_exec import exec_on_node
 
 
 def apply_network_chaos(container: str, operation: str, **kwargs) -> dict:
-    """Apply network chaos to a container."""
+    """Apply network chaos to a container.
+
+    Raises RuntimeError if the tc command fails (e.g., missing NET_ADMIN).
+    """
     args = {"operation": operation}
     args.update(kwargs)
-    return exec_on_node(container, "network_chaos", args, timeout=10)
+    result = exec_on_node(container, "network_chaos", args, timeout=10)
+    if not result.get("success"):
+        raise RuntimeError(
+            f"Network chaos '{operation}' failed on {container}: "
+            f"{result.get('stderr', 'unknown error')}"
+        )
+    return result
 
 
 def clear_network_chaos(container: str) -> dict:
@@ -157,9 +166,7 @@ class TestHighLatency:
 
         chaos_cleanup(node_a.container)
         try:
-            result = apply_network_chaos(node_a.container, "latency", ms=500)
-            if not result.get("success"):
-                pytest.skip(f"Network chaos not available: {result.get('stderr', '')}")
+            apply_network_chaos(node_a.container, "latency", ms=500)
         except RuntimeError as e:
             pytest.skip(f"Network chaos not available: {e}")
 
@@ -272,14 +279,8 @@ class TestNetworkPartition:
 
 
 @pytest.mark.chaos
-@pytest.mark.skip(reason="Daemon restart kills PID 1 in Docker, stopping the container")
 class TestDaemonRestart:
-    """Test behavior during daemon restarts.
-
-    NOTE: This test is skipped in Docker environments because rnsd runs as PID 1.
-    Killing PID 1 causes the container to stop. This test should be run in
-    non-containerized environments or with a supervisor process.
-    """
+    """Test behavior during daemon restarts."""
 
     def test_link_after_daemon_restart(
         self, node_a, node_c, unique_app_name
@@ -287,8 +288,8 @@ class TestDaemonRestart:
         """
         RES-004: Links can be established after daemon restart.
 
-        Note: This test restarts the daemon, which may affect other tests
-        if run in parallel.
+        Uses `docker restart` to restart the container, so rnsd (PID 1)
+        gets a clean restart. restart_rnsd() waits for the healthcheck.
         """
         aspects = ["resilience", "restart"]
 
@@ -298,7 +299,7 @@ class TestDaemonRestart:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Verify initial link works
         link1 = node_a.create_link(
@@ -309,20 +310,18 @@ class TestDaemonRestart:
         )
         assert link1["status"] == "ACTIVE"
 
-        # Restart daemon on node-a
+        # Restart node-a's container (docker restart)
         restart_result = node_a.restart_rnsd()
-        assert restart_result["success"], f"Failed to restart rnsd: {restart_result.get('error')}"
+        assert restart_result["success"], f"Failed to restart: {restart_result.get('error')}"
 
-        # Wait for daemon to fully initialize
-        time.sleep(3)
+        # Re-announce so the restarted node-a can discover the path
+        node_c.start_destination_server(
+            app_name=unique_app_name,
+            aspects=aspects,
+            announce=True,
+        )
 
-        # Verify daemon is running
-        assert node_a.is_rnsd_running(), "rnsd not running after restart"
-
-        # Re-announce destination (path info may be lost)
-        time.sleep(2)
-
-        # Should be able to establish new link
+        # Should be able to establish new link after restart
         link2 = node_a.create_link(
             destination_hash=dest["destination_hash"],
             app_name=unique_app_name,

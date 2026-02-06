@@ -565,82 +565,81 @@ class NodeInterface:
 
     def restart_rnsd(self, timeout: int = 30) -> dict:
         """
-        Restart the rnsd daemon on this node.
+        Restart the rnsd daemon by restarting the Docker container.
+
+        Uses `docker restart` so rnsd (PID 1) is cleanly restarted
+        without needing an init wrapper.
 
         Returns:
             dict with success status
         """
-        # Kill existing rnsd processes
-        kill_cmd = [
-            "docker", "exec", self.container,
-            "pkill", "-f", "rnsd"
-        ]
-        subprocess.run(kill_cmd, capture_output=True, timeout=5)
+        restart_cmd = ["docker", "restart", self.container]
+        result = subprocess.run(restart_cmd, capture_output=True, text=True, timeout=timeout)
 
-        # Wait a moment for process to terminate
-        time.sleep(0.5)
+        if result.returncode != 0:
+            return {"success": False, "error": result.stderr}
 
-        # Start rnsd in background
-        start_cmd = [
-            "docker", "exec", "-d", self.container,
-            "rnsd", "-v"
-        ]
-        result = subprocess.run(start_cmd, capture_output=True, text=True, timeout=10)
+        # Wait for container to become healthy
+        start = time.time()
+        while time.time() - start < timeout:
+            check_cmd = [
+                "docker", "inspect", "-f", "{{.State.Health.Status}}", self.container
+            ]
+            check = subprocess.run(check_cmd, capture_output=True, text=True, timeout=5)
+            if check.stdout.strip() == "healthy":
+                return {"success": True}
+            time.sleep(1)
 
-        # Wait for daemon to be ready
-        time.sleep(2)
+        return {"success": False, "error": "Container did not become healthy after restart"}
+
+    def stop_rnsd(self, timeout: int = 10) -> dict:
+        """
+        Stop the rnsd daemon by stopping the Docker container.
+
+        Returns:
+            dict with success status
+        """
+        cmd = ["docker", "stop", self.container]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
         return {
             "success": result.returncode == 0,
             "error": result.stderr if result.returncode != 0 else None,
-        }
-
-    def stop_rnsd(self, timeout: int = 10) -> dict:
-        """
-        Stop the rnsd daemon on this node.
-
-        Returns:
-            dict with success status
-        """
-        cmd = [
-            "docker", "exec", self.container,
-            "pkill", "-f", "rnsd"
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-
-        return {
-            "success": True,  # pkill returns non-zero if no process found
         }
 
     def start_rnsd(self, timeout: int = 30) -> dict:
         """
-        Start the rnsd daemon on this node.
+        Start the rnsd daemon by starting the Docker container.
 
         Returns:
             dict with success status
         """
-        cmd = [
-            "docker", "exec", "-d", self.container,
-            "rnsd", "-v"
-        ]
+        cmd = ["docker", "start", self.container]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
 
-        # Wait for daemon to be ready
-        time.sleep(2)
+        if result.returncode != 0:
+            return {"success": False, "error": result.stderr}
 
-        return {
-            "success": result.returncode == 0,
-            "error": result.stderr if result.returncode != 0 else None,
-        }
+        # Wait for container to become healthy
+        start = time.time()
+        while time.time() - start < timeout:
+            check_cmd = [
+                "docker", "inspect", "-f", "{{.State.Health.Status}}", self.container
+            ]
+            check = subprocess.run(check_cmd, capture_output=True, text=True, timeout=5)
+            if check.stdout.strip() == "healthy":
+                return {"success": True}
+            time.sleep(1)
+
+        return {"success": False, "error": "Container did not become healthy after start"}
 
     def is_rnsd_running(self, timeout: int = 10) -> bool:
         """Check if rnsd is running on this node."""
         cmd = [
-            "docker", "exec", self.container,
-            "pgrep", "-f", "rnsd"
+            "docker", "inspect", "-f", "{{.State.Health.Status}}", self.container
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-        return result.returncode == 0
+        return result.stdout.strip() == "healthy"
 
     # ========== Network Chaos Methods ==========
 

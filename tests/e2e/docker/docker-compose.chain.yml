@@ -8,6 +8,8 @@ services:
       dockerfile: tests/e2e/docker/Dockerfile
     container_name: rns-transport
     hostname: transport
+    cap_add:
+      - NET_ADMIN
     volumes:
       - ./configs/transport/config:/root/.reticulum/config:ro
       - transport-storage:/root/.reticulum/storage
@@ -27,6 +29,8 @@ services:
       dockerfile: tests/e2e/docker/Dockerfile
     container_name: rns-transport-2
     hostname: transport-2
+    cap_add:
+      - NET_ADMIN
     volumes:
       - ./configs/transport-2/config:/root/.reticulum/config:ro
       - transport-2-storage:/root/.reticulum/storage
@@ -46,6 +50,8 @@ services:
       dockerfile: tests/e2e/docker/Dockerfile
     container_name: rns-node-a
     hostname: node-a
+    cap_add:
+      - NET_ADMIN
     volumes:
       - ./configs/node-a/config:/root/.reticulum/config:ro
       - node-a-storage:/root/.reticulum/storage
@@ -68,6 +74,8 @@ services:
       dockerfile: tests/e2e/docker/Dockerfile
     container_name: rns-node-d
     hostname: node-d
+    cap_add:
+      - NET_ADMIN
     volumes:
       - ./configs/node-d/config:/root/.reticulum/config:ro
       - node-d-storage:/root/.reticulum/storage
@@ -92,6 +100,8 @@ services:
       dockerfile: tests/e2e/docker/Dockerfile
     container_name: rns-chain-link
     hostname: chain-link
+    cap_add:
+      - NET_ADMIN
     volumes:
       - chain-link-storage:/root/.reticulum/storage
     networks:
@@ -152,7 +162,7 @@ services:
       - NODE_D_HOST=node-d
       - RESULTS_DIR=/results
       - TOPOLOGY=chain
-    entrypoint: ["python", "-m", "pytest", "tests/e2e/scenarios/", "-v", "--tb=short", "-m", "topology_chain"]
+    entrypoint: ["python", "-m", "pytest", "tests/e2e/scenarios/", "-v", "--tb=short", "-p", "no:cacheprovider", "-m", "topology_chain"]
 
 networks:
   rns-e2e:

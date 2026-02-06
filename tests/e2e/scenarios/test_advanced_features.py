@@ -126,14 +126,15 @@ class TestLinkIdentification:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        path = node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+        assert path.get("path_found"), f"Path not found: {path}"
 
         # Create link with identification via create_link.py
         result = node_a.create_link(
             destination_hash=dest["destination_hash"],
             app_name=unique_app_name,
             aspects=aspects,
-            timeout=15.0,
+            timeout=20.0,
             identify=True,
         )
 

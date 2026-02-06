@@ -136,7 +136,7 @@ def do_run(args):
     env = os.environ.copy()
     env["TOPOLOGY"] = topology
 
-    pytest_args = ["python", "-m", "pytest", "tests/e2e/scenarios/", "-v", "--tb=short"]
+    pytest_args = ["python", "-m", "pytest", "tests/e2e/scenarios/", "-v", "--tb=short", "-p", "no:cacheprovider"]
 
     if topology == "star":
         pytest_args.extend(["-m", "not (topology_chain or topology_ring or topology_mesh)"])

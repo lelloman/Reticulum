@@ -9,6 +9,8 @@ services:
       dockerfile: tests/e2e/docker/Dockerfile
     container_name: rns-transport
     hostname: transport
+    cap_add:
+      - NET_ADMIN
     volumes:
       - ./configs/transport/config:/root/.reticulum/config:ro
       - transport-storage:/root/.reticulum/storage
@@ -28,6 +30,8 @@ services:
       dockerfile: tests/e2e/docker/Dockerfile
     container_name: rns-node-a
     hostname: node-a
+    cap_add:
+      - NET_ADMIN
     volumes:
       - ./configs/node-a/config:/root/.reticulum/config:ro
       - node-a-storage:/root/.reticulum/storage
@@ -50,6 +54,8 @@ services:
       dockerfile: tests/e2e/docker/Dockerfile
     container_name: rns-node-b
     hostname: node-b
+    cap_add:
+      - NET_ADMIN
     volumes:
       - node-b-storage:/root/.reticulum/storage
     networks:
@@ -85,6 +91,8 @@ services:
       dockerfile: tests/e2e/docker/Dockerfile
     container_name: rns-node-c
     hostname: node-c
+    cap_add:
+      - NET_ADMIN
     volumes:
       - ./configs/node-c/config:/root/.reticulum/config:ro
       - node-c-storage:/root/.reticulum/storage
@@ -107,6 +115,8 @@ services:
       dockerfile: tests/e2e/docker/Dockerfile
     container_name: rns-node-d
     hostname: node-d
+    cap_add:
+      - NET_ADMIN
     volumes:
       - node-d-storage:/root/.reticulum/storage
     networks:
@@ -142,6 +152,8 @@ services:
       dockerfile: tests/e2e/docker/Dockerfile
     container_name: rns-node-e
     hostname: node-e
+    cap_add:
+      - NET_ADMIN
     volumes:
       - node-e-storage:/root/.reticulum/storage
     networks:
@@ -202,7 +214,7 @@ services:
       - NODE_E_HOST=node-e
       - RESULTS_DIR=/results
       - TOPOLOGY=mesh
-    entrypoint: ["python", "-m", "pytest", "tests/e2e/scenarios/", "-v", "--tb=short", "-m", "topology_mesh"]
+    entrypoint: ["python", "-m", "pytest", "tests/e2e/scenarios/", "-v", "--tb=short", "-p", "no:cacheprovider", "-m", "topology_mesh"]
 
 networks:
   rns-e2e:
