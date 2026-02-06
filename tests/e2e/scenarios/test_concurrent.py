@@ -177,38 +177,38 @@ class TestAnnounceStorm:
         System prevents announce flooding (bandwidth cap).
 
         This test verifies the system doesn't crash under announce load.
+        Flood destinations are created without announce=True so they don't
+        consume announce bandwidth in the persistent daemon.
         """
         aspects = ["concurrent", "flood"]
 
-        # Create several announces to test flood resilience
+        # Create several destinations that each trigger an announce
         for i in range(3):
             try:
-                node_c.create_destination(
+                dest_flood = node_c.create_destination(
                     app_name=unique_app_name,
                     aspects=aspects + [f"flood{i}"],
-                    announce=True,
                 )
-                time.sleep(0.3)  # Small delay between announces
+                # Announce each one explicitly to stress the announce queue
+                node_c.announce(dest_flood["destination_hash"])
             except Exception:
                 pass  # Some may fail due to rate limiting
 
-        # Wait for announce queue to drain after flood
-        time.sleep(5.0)
-
-        # Verify basic functionality still works
+        # Verify basic functionality still works after the flood
         dest = node_c.start_destination_server(
             app_name=unique_app_name + "_after_flood",
             aspects=["test", "responsive"],
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=20.0)
+        path = node_a.wait_for_path(dest["destination_hash"], timeout=20.0)
+        assert path.get("path_found"), f"Path not found after flood: {path}"
 
         link = node_a.create_link(
             destination_hash=dest["destination_hash"],
             app_name=unique_app_name + "_after_flood",
             aspects=["test", "responsive"],
-            timeout=25.0,  # Longer timeout after flood
+            timeout=20.0,
         )
 
         assert link["status"] == "ACTIVE", f"System unresponsive after announce flood: {link}"

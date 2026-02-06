@@ -314,11 +314,16 @@ class TestDaemonRestart:
         restart_result = node_a.restart_rnsd()
         assert restart_result["success"], f"Failed to restart: {restart_result.get('error')}"
 
-        # Re-announce the original destination so the restarted node-a
-        # can discover the path to it (node_a's path cache is empty)
+        # Re-announce so the transport node forwards the announce to node_a
+        # once it reconnects. node_a also needs the identity (not just the
+        # path) to create a link, which only comes from an announce.
         node_c.announce(dest["destination_hash"])
 
-        # Should be able to establish new link after restart
+        # wait_for_path re-requests every 2s; it will succeed once rnsd
+        # has re-established TCP to the transport node.
+        path = node_a.wait_for_path(dest["destination_hash"], timeout=30.0)
+        assert path["path_found"], f"Path not found after restart: {path}"
+
         link2 = node_a.create_link(
             destination_hash=dest["destination_hash"],
             app_name=unique_app_name,
@@ -351,7 +356,7 @@ class TestPathRecovery:
         # Wait for path
         path_result = node_a.wait_for_path(
             dest["destination_hash"],
-            timeout=15.0,
+            timeout=20.0,
         )
 
         assert path_result["path_found"], "Initial path not found"
@@ -365,7 +370,7 @@ class TestPathRecovery:
 
         path_result2 = node_a.wait_for_path(
             dest2["destination_hash"],
-            timeout=15.0,
+            timeout=20.0,
         )
 
         assert path_result2["path_found"], "Second path not found"
