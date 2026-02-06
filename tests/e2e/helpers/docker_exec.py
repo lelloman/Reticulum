@@ -1,19 +1,177 @@
-"""Execute Python scripts inside RNS containers via docker exec."""
+"""Execute Python scripts inside RNS containers via a persistent control daemon."""
 
 import subprocess
 import json
-import os
 import time
+import threading
+import queue
 from typing import Optional
 
 
+class _DaemonConnection:
+    """
+    Wraps a persistent ``docker exec -i`` subprocess running control_daemon.py.
+
+    Uses a background reader thread + queue.Queue for timeout-safe response reading.
+    Auto-detects a dead daemon (process exited) so callers can restart.
+    """
+
+    def __init__(self, container: str):
+        self.container = container
+        self._proc = None
+        self._queue = None
+        self._reader_thread = None
+        self._lock = threading.Lock()
+        self._start()
+
+    def _start(self):
+        """Launch the daemon subprocess and wait for the ready signal."""
+        self._proc = subprocess.Popen(
+            [
+                "docker", "exec", "-i", self.container,
+                "python", "/app/scripts/control_daemon.py",
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        self._queue = queue.Queue()
+        self._reader_thread = threading.Thread(
+            target=self._reader_loop, daemon=True
+        )
+        self._reader_thread.start()
+
+        # Wait for the {"status": "ready"} line
+        try:
+            ready = self._queue.get(timeout=30)
+        except queue.Empty:
+            self.shutdown()
+            raise RuntimeError(
+                f"Daemon on {self.container} did not become ready within 30s"
+            )
+
+        if "error" in ready:
+            self.shutdown()
+            raise RuntimeError(
+                f"Daemon on {self.container} failed to start: {ready['error']}"
+            )
+
+    def _reader_loop(self):
+        """Background thread that reads lines from stdout into the queue."""
+        try:
+            for line in self._proc.stdout:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    # Skip non-JSON lines (e.g. RNS log output)
+                    continue
+                self._queue.put(obj)
+        except (ValueError, OSError):
+            # Pipe closed
+            pass
+
+    @property
+    def alive(self) -> bool:
+        return self._proc is not None and self._proc.poll() is None
+
+    def send_command(self, command: str, args: dict, timeout: int = 30) -> dict:
+        """
+        Send a command to the daemon and return the response.
+
+        Raises RuntimeError if the daemon is dead or the command times out.
+        """
+        with self._lock:
+            if not self.alive:
+                raise RuntimeError(f"Daemon on {self.container} is not running")
+
+            request = json.dumps({"command": command, "args": args}) + "\n"
+            try:
+                self._proc.stdin.write(request)
+                self._proc.stdin.flush()
+            except (BrokenPipeError, OSError) as e:
+                raise RuntimeError(
+                    f"Daemon on {self.container} pipe broken: {e}"
+                )
+
+            try:
+                response = self._queue.get(timeout=timeout)
+            except queue.Empty:
+                raise RuntimeError(
+                    f"Daemon on {self.container} timed out after {timeout}s "
+                    f"for command '{command}'"
+                )
+
+            return response
+
+    def shutdown(self):
+        """Kill the daemon subprocess."""
+        if self._proc and self._proc.poll() is None:
+            try:
+                self._proc.stdin.close()
+            except OSError:
+                pass
+            try:
+                self._proc.terminate()
+                self._proc.wait(timeout=5)
+            except (subprocess.TimeoutExpired, OSError):
+                self._proc.kill()
+        self._proc = None
+
+
+# ============================================================
+# Daemon pool: one connection per container
+# ============================================================
+
+_daemon_pool: dict[str, _DaemonConnection] = {}
+_pool_lock = threading.Lock()
+
+
+def _get_daemon(container: str) -> _DaemonConnection:
+    """Get or create a daemon connection for the given container."""
+    with _pool_lock:
+        conn = _daemon_pool.get(container)
+        if conn is not None and conn.alive:
+            return conn
+        # Dead or missing – create a new one
+        if conn is not None:
+            conn.shutdown()
+        conn = _DaemonConnection(container)
+        _daemon_pool[container] = conn
+        return conn
+
+
+def _invalidate_daemon(container: str):
+    """Shut down and remove the daemon connection for a container."""
+    with _pool_lock:
+        conn = _daemon_pool.pop(container, None)
+        if conn is not None:
+            conn.shutdown()
+
+
+def shutdown_all_daemons():
+    """Shut down all daemon connections. Called at end of test session."""
+    with _pool_lock:
+        for conn in _daemon_pool.values():
+            conn.shutdown()
+        _daemon_pool.clear()
+
+
+# ============================================================
+# exec_on_node – routes through daemon
+# ============================================================
+
 def exec_on_node(container: str, script: str, args: dict, timeout: int = 30) -> dict:
     """
-    Execute a control script on an RNS node container.
+    Execute a control script on an RNS node container via the persistent daemon.
 
     Args:
         container: Container name (e.g., "rns-node-a")
-        script: Script name (e.g., "create_destination")
+        script: Script/command name (e.g., "create_destination")
         args: Arguments to pass as JSON
         timeout: Command timeout in seconds
 
@@ -23,35 +181,26 @@ def exec_on_node(container: str, script: str, args: dict, timeout: int = 30) -> 
     Raises:
         RuntimeError: If script execution fails
     """
-    cmd = [
-        "docker", "exec", "-i", container,
-        "python", f"/app/scripts/{script}.py",
-    ]
-
-    result = subprocess.run(
-        cmd,
-        input=json.dumps(args),
-        capture_output=True,
-        text=True,
-        timeout=timeout
-    )
-
-    if result.returncode != 0:
-        error_msg = result.stderr.strip() if result.stderr else "Unknown error"
-        # Try to parse JSON error from stdout
-        if result.stdout:
-            try:
-                error_data = json.loads(result.stdout)
-                if "error" in error_data:
-                    error_msg = error_data["error"]
-            except json.JSONDecodeError:
-                pass
-        raise RuntimeError(f"Script {script} failed on {container}: {error_msg}")
+    daemon = _get_daemon(container)
 
     try:
-        return json.loads(result.stdout)
-    except json.JSONDecodeError as e:
-        raise RuntimeError(f"Invalid JSON response from {script}: {result.stdout[:200]}")
+        response = daemon.send_command(script, args, timeout=timeout)
+    except RuntimeError:
+        # Daemon may have died – invalidate and retry once
+        _invalidate_daemon(container)
+        daemon = _get_daemon(container)
+        response = daemon.send_command(script, args, timeout=timeout)
+
+    # Unwrap the daemon protocol.
+    # Daemon-level errors (script crashed with exception) have "error" + "traceback".
+    # Script-level errors (e.g. {"error": "Timeout waiting for path"}) are wrapped
+    # in {"result": {...}} and passed through to the caller unchanged.
+    if "error" in response and "result" not in response:
+        error_msg = response["error"]
+        tb = response.get("traceback", "")
+        raise RuntimeError(f"Script {script} failed on {container}: {error_msg}\n{tb}")
+
+    return response.get("result", response)
 
 
 class NodeInterface:
@@ -111,8 +260,8 @@ class NodeInterface:
         """
         Start a destination server that accepts incoming links.
 
-        This starts a background process that keeps the destination alive.
-        The process runs until the container is stopped or killed.
+        Uses the persistent daemon to keep the destination alive across
+        commands. No background process is needed.
 
         Args:
             app_name: Application name
@@ -130,32 +279,12 @@ class NodeInterface:
             "app_data": app_data,
         }
 
-        # Use bash -c with background execution
-        # The server prints JSON to stdout before going into its loop
-        args_json = json.dumps(args).replace('"', '\\"')
-        cmd = [
-            "docker", "exec", self.container,
-            "bash", "-c",
-            f'python /app/scripts/serve_destination.py "{args_json}" &'
-        ]
+        result = exec_on_node(self.container, "serve_destination", args, timeout=15)
 
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-
-        # The output should contain the JSON with destination info
-        output = result.stdout.strip()
-
-        # Wait a moment to ensure the server is running and announce propagates
+        # Wait a moment to ensure the announce propagates
         time.sleep(1.0)
 
-        try:
-            # Find the JSON line in output
-            for line in output.split('\n'):
-                line = line.strip()
-                if line.startswith('{'):
-                    return json.loads(line)
-            raise ValueError(f"No JSON found in output: {output}")
-        except (json.JSONDecodeError, ValueError) as e:
-            raise RuntimeError(f"Failed to parse destination server output: {output[:200]}. Error: {e}")
+        return result
 
     def announce(
         self,
@@ -462,7 +591,7 @@ class NodeInterface:
         """Run rnir command."""
         return self.run_cli("rnir", cli_args or [], timeout)
 
-    # ========== File Operations ==========
+    # ========== File Operations (direct docker exec) ==========
 
     def create_file(self, path: str, content: bytes, timeout: int = 10) -> dict:
         """
@@ -573,6 +702,9 @@ class NodeInterface:
         Returns:
             dict with success status
         """
+        # Invalidate daemon connection before restarting
+        _invalidate_daemon(self.container)
+
         restart_cmd = ["docker", "restart", self.container]
         result = subprocess.run(restart_cmd, capture_output=True, text=True, timeout=timeout)
 
@@ -599,6 +731,8 @@ class NodeInterface:
         Returns:
             dict with success status
         """
+        _invalidate_daemon(self.container)
+
         cmd = ["docker", "stop", self.container]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 

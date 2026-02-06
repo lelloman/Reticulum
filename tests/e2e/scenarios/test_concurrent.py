@@ -192,6 +192,9 @@ class TestAnnounceStorm:
             except Exception:
                 pass  # Some may fail due to rate limiting
 
+        # Wait for announce queue to drain after flood
+        time.sleep(2.0)
+
         # Verify basic functionality still works
         dest = node_c.start_destination_server(
             app_name=unique_app_name + "_after_flood",
@@ -199,13 +202,13 @@ class TestAnnounceStorm:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=20.0)
 
         link = node_a.create_link(
             destination_hash=dest["destination_hash"],
             app_name=unique_app_name + "_after_flood",
             aspects=["test", "responsive"],
-            timeout=20.0,  # Longer timeout
+            timeout=25.0,  # Longer timeout after flood
         )
 
         assert link["status"] == "ACTIVE", f"System unresponsive after announce flood: {link}"

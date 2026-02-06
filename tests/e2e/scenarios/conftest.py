@@ -9,7 +9,7 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from helpers.docker_exec import NodeInterface
+from helpers.docker_exec import NodeInterface, shutdown_all_daemons
 from helpers.fixtures import (
     CONTAINER_TRANSPORT,
     CONTAINER_TRANSPORT_2,
@@ -129,6 +129,13 @@ def docker_env():
     yield
 
     # No teardown - leave containers running for inspection
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _cleanup_daemons():
+    """Shut down persistent daemon connections at end of test session."""
+    yield
+    shutdown_all_daemons()
 
 
 @pytest.fixture
