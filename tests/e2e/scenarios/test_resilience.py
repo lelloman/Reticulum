@@ -71,7 +71,7 @@ class TestPacketLoss:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Apply 10% packet loss to node-a
         chaos_cleanup(node_a.container)
@@ -110,7 +110,7 @@ class TestPacketLoss:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         chaos_cleanup(node_a.container)
         try:
@@ -153,7 +153,7 @@ class TestHighLatency:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         chaos_cleanup(node_a.container)
         try:
@@ -189,7 +189,7 @@ class TestHighLatency:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         chaos_cleanup(node_a.container)
         try:
@@ -236,7 +236,7 @@ class TestNetworkPartition:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # First verify link works
         link1 = node_a.create_link(
@@ -352,8 +352,6 @@ class TestPathRecovery:
             announce=True,
         )
 
-        time.sleep(3)
-
         # Wait for path
         path_result = node_a.wait_for_path(
             dest["destination_hash"],
@@ -368,8 +366,6 @@ class TestPathRecovery:
             aspects=["new", "dest"],
             announce=True,
         )
-
-        time.sleep(3)
 
         path_result2 = node_a.wait_for_path(
             dest2["destination_hash"],
@@ -422,7 +418,7 @@ class TestResourceRetry:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Apply moderate packet loss
         chaos_cleanup(node_a.container)

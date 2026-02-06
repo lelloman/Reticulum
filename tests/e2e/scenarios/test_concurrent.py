@@ -38,7 +38,7 @@ class TestMultipleLinks:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Create multiple links sequentially
         links = []
@@ -82,7 +82,7 @@ class TestParallelResources:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Results queue
         results = queue.Queue()
@@ -156,9 +156,6 @@ class TestAnnounceStorm:
             destinations.append(dest)
             time.sleep(0.2)  # Small delay between announces
 
-        # Wait for announces to propagate
-        time.sleep(3)
-
         # Verify node_a can find paths to destinations
         found = 0
         for dest in destinations:
@@ -195,9 +192,6 @@ class TestAnnounceStorm:
             except Exception:
                 pass  # Some may fail due to rate limiting
 
-        # Wait for system to stabilize
-        time.sleep(3)
-
         # Verify basic functionality still works
         dest = node_c.start_destination_server(
             app_name=unique_app_name + "_after_flood",
@@ -205,7 +199,7 @@ class TestAnnounceStorm:
             announce=True,
         )
 
-        time.sleep(3)  # Longer wait for announce propagation
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         link = node_a.create_link(
             destination_hash=dest["destination_hash"],
@@ -243,7 +237,8 @@ class TestBidirectionalTraffic:
             announce=True,
         )
 
-        time.sleep(3)
+        node_a.wait_for_path(dest_c["destination_hash"], timeout=10.0)
+        node_c.wait_for_path(dest_a["destination_hash"], timeout=10.0)
 
         # Results for concurrent transfers
         results = queue.Queue()
@@ -317,7 +312,7 @@ class TestLinkPool:
             announce=True,
         )
 
-        time.sleep(3)  # Longer initial wait
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Create multiple sequential links, each sending data
         successful_transfers = 0
@@ -337,7 +332,7 @@ class TestLinkPool:
             if result["status"] == "ACTIVE" and result["data_sent"]:
                 successful_transfers += 1
 
-            time.sleep(1.0)  # Longer delay between links
+            time.sleep(0.2)
 
         # At least one transfer should succeed
         assert successful_transfers >= 1, f"No transfers succeeded: {results}"

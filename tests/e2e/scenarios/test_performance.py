@@ -39,7 +39,7 @@ class TestThroughput:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Test different sizes
         sizes = [1000, 5000, 10000]  # 1KB, 5KB, 10KB
@@ -93,7 +93,7 @@ class TestLatency:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         rtts = []
 
@@ -139,9 +139,9 @@ class TestLargeResource:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
-        # 100KB of random data (hex encoding doubles size, must fit in ARG_MAX)
+        # 100KB of random data
         data_size = 100_000
         test_data = os.urandom(data_size)
 
@@ -185,7 +185,7 @@ class TestLinkSetupTime:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         setup_times = []
 
@@ -221,7 +221,9 @@ class TestAnnouncePropagation:
         """
         PERF-005: Measure time for announce to propagate.
 
-        Creates announce on node_c and measures time until node_a has path.
+        Creates destination with announce on node_c and measures time until
+        node_a discovers the path. The measurement includes a small overhead
+        from the background process startup, but propagation dominates.
         """
         aspects = ["perf", "announce", "propagation"]
         metrics = PerformanceMetrics("announce_propagation")
@@ -232,17 +234,15 @@ class TestAnnouncePropagation:
             test_name = f"{unique_app_name}_{i}"
             aspects_i = aspects + [f"iter{i}"]
 
-            # Create destination
-            dest = node_c.create_destination(
-                app_name=test_name,
-                aspects=aspects_i,
-                announce=False,
-            )
-
-            # Measure time from announce to path discovery
+            # Measure time from destination+announce creation to path discovery.
+            # The announce is sent inside start_destination_server, so we
+            # measure from when the server is up until node_a sees the path.
             with metrics.time_operation(f"propagation_{i}") as t:
-                # Trigger announce
-                node_c.announce(dest["destination_hash"])
+                dest = node_c.start_destination_server(
+                    app_name=test_name,
+                    aspects=aspects_i,
+                    announce=True,
+                )
 
                 # Wait for path on node_a
                 path_result = node_a.wait_for_path(
@@ -256,8 +256,6 @@ class TestAnnouncePropagation:
 
             propagation_times.append(t.duration_ms)
             print(f"  Announce {i}: Propagation = {t.duration_ms:.2f} ms")
-
-            time.sleep(1)
 
         if propagation_times:
             avg = sum(propagation_times) / len(propagation_times)
@@ -285,7 +283,7 @@ class TestBenchmarkReport:
             aspects=aspects,
             announce=True,
         )
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # 1. Link setup
         for i in range(3):

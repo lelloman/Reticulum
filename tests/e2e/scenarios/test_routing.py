@@ -34,9 +34,6 @@ class TestRoutingE2E:
             announce=True,
         )
 
-        # Wait for announce to propagate through transport
-        time.sleep(3)
-
         # Check that node-a can find path via transport
         result = node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
@@ -58,9 +55,6 @@ class TestRoutingE2E:
             announce=True,
         )
 
-        # Wait for propagation
-        time.sleep(3)
-
         # Verify node-c received the announce (has path)
         result = node_c.wait_for_path(dest["destination_hash"], timeout=10.0)
         assert result["path_found"] is True
@@ -80,7 +74,7 @@ class TestRoutingE2E:
             announce=True,
         )
 
-        time.sleep(3)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Create link and send data in one operation
         test_data = b"Multi-hop message through transport!"
@@ -111,8 +105,6 @@ class TestRoutingE2E:
             announce=True,
         )
 
-        time.sleep(2)
-
         # Both nodes should find path to transport
         result_a = node_a.wait_for_path(dest_transport["destination_hash"], timeout=10.0)
         assert result_a["path_found"] is True
@@ -142,7 +134,8 @@ class TestRoutingE2E:
             announce=True,
         )
 
-        time.sleep(3)
+        node_a.wait_for_path(dest_c["destination_hash"], timeout=10.0)
+        node_c.wait_for_path(dest_a["destination_hash"], timeout=10.0)
 
         # A can reach C
         link_a_to_c = node_a.create_link(

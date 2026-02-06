@@ -37,8 +37,7 @@ class TestLinkE2E:
         )
         dest_hash = dest["destination_hash"]
 
-        # Wait for announce to propagate
-        time.sleep(2)
+        node_a.wait_for_path(dest_hash, timeout=10.0)
 
         # Create link from node-a
         link = node_a.create_link(
@@ -67,7 +66,7 @@ class TestLinkE2E:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Create link and send data in one operation
         # (This is required because the link object is local to the Python process)
@@ -108,7 +107,8 @@ class TestLinkE2E:
             announce=True,
         )
 
-        time.sleep(3)
+        node_a.wait_for_path(dest_c["destination_hash"], timeout=10.0)
+        node_c.wait_for_path(dest_a["destination_hash"], timeout=10.0)
 
         # Link from A to C
         link_a_to_c = node_a.create_link(
@@ -162,7 +162,7 @@ class TestLinkE2E:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Create first link
         link1 = node_a.create_link(

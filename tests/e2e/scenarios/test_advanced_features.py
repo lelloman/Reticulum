@@ -66,7 +66,7 @@ class TestBufferStreaming:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Send multiple small packets (simulating stream)
         chunks = [f"Chunk {i}: " + "X" * 50 for i in range(5)]
@@ -126,7 +126,7 @@ class TestLinkIdentification:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Test link identification
         result = run_advanced_test(
@@ -181,7 +181,7 @@ class TestMTUSignaling:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Send packet within MTU (should succeed)
         small_data = b"A" * 300
@@ -217,7 +217,7 @@ class TestEncryptionModes:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Send sensitive data (should be encrypted in transit)
         sensitive_data = b"Secret message: password123"

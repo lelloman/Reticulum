@@ -68,8 +68,12 @@ def wait_for_healthy(timeout=60):
 
 def do_up(args):
     """Start the Docker environment."""
-    print("Building and starting Docker environment...")
-    docker_compose("build")
+    if not args.no_build:
+        print("Building Docker images...")
+        docker_compose("build")
+    else:
+        print("Skipping build (--no-build)")
+    print("Starting Docker environment...")
     docker_compose("up", "-d", "transport", "node-a", "node-c")
 
     if not wait_for_healthy():
@@ -126,6 +130,7 @@ def main():
     parser.add_argument("--full", action="store_true", help="Full test cycle")
     parser.add_argument("--logs", action="store_true", help="Show container logs")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
+    parser.add_argument("--no-build", action="store_true", help="Skip Docker image build")
 
     args = parser.parse_args()
 

@@ -79,8 +79,7 @@ class TestCLITools:
         )
         dest_hash = dest["destination_hash"]
 
-        # Wait for announce to propagate
-        time.sleep(3)
+        node_a.wait_for_path(dest_hash, timeout=10.0)
 
         # Request path using rnpath
         result = node_a.rnpath([dest_hash])
@@ -122,8 +121,7 @@ class TestCLITools:
         )
         dest_hash = dest["destination_hash"]
 
-        # Wait for announce to propagate
-        time.sleep(3)
+        node_a.wait_for_path(dest_hash, timeout=10.0)
 
         # Try rnprobe - note: this requires the destination to respond
         result = node_a.rnprobe(dest_hash, timeout=15)

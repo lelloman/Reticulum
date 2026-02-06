@@ -24,13 +24,13 @@ def exec_on_node(container: str, script: str, args: dict, timeout: int = 30) -> 
         RuntimeError: If script execution fails
     """
     cmd = [
-        "docker", "exec", container,
+        "docker", "exec", "-i", container,
         "python", f"/app/scripts/{script}.py",
-        json.dumps(args)
     ]
 
     result = subprocess.run(
         cmd,
+        input=json.dumps(args),
         capture_output=True,
         text=True,
         timeout=timeout

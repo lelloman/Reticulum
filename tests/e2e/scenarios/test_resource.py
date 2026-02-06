@@ -31,7 +31,7 @@ class TestResourceE2E:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Send small resource (100 bytes) using combined link+resource operation
         small_data = b"A" * 100
@@ -64,7 +64,7 @@ class TestResourceE2E:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Send medium resource (5KB)
         medium_data = b"B" * 5000
@@ -97,7 +97,7 @@ class TestResourceE2E:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Send compressible data (repeated pattern)
         # 10KB of repeated pattern should compress very well
@@ -130,7 +130,7 @@ class TestResourceE2E:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Send data without compression
         data = b"C" * 2000
@@ -165,7 +165,7 @@ class TestResourceE2E:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Send large resource (50KB)
         large_data = os.urandom(50000)

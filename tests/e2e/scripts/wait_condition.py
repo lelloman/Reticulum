@@ -47,6 +47,7 @@ def _wait_for_path(args: dict, timeout: float) -> dict:
         RNS.Transport.request_path(dest_hash)
 
     start = time.time()
+    last_request = start
     while not RNS.Transport.has_path(dest_hash):
         if time.time() - start > timeout:
             return {
@@ -54,6 +55,10 @@ def _wait_for_path(args: dict, timeout: float) -> dict:
                 "path_found": False,
                 "error": "Timeout waiting for path"
             }
+        # Re-request periodically in case the first request was too early
+        if time.time() - last_request > 2.0:
+            RNS.Transport.request_path(dest_hash)
+            last_request = time.time()
         time.sleep(0.1)
 
     # Get path info
@@ -154,11 +159,7 @@ def _wait_for_link(args: dict, timeout: float) -> dict:
 
 
 def main():
-    if len(sys.argv) < 2:
-        print(json.dumps({"error": "Missing arguments"}))
-        sys.exit(1)
-
-    args = json.loads(sys.argv[1])
+    args = json.loads(sys.argv[1] if len(sys.argv) > 1 else sys.stdin.read())
     result = run(args)
     print(json.dumps(result))
 

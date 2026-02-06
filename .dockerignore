@@ -1,0 +1,15 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+dist
+build
+docs
+*.pdf
+*.epub
+.github
+.tox
+.mypy_cache
+.pytest_cache
+tests/e2e/docker/results

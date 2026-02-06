@@ -16,12 +16,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install RNS
-COPY . /app/
+# Install pytest (rarely changes)
+RUN pip install --no-cache-dir pytest
+
+# Copy only files needed for pip install so this layer is cached
+# unless dependencies actually change
+COPY setup.py README.md LICENSE /app/
+COPY RNS/_version.py /app/RNS/_version.py
 RUN pip install --no-cache-dir -e .
 
-# Install pytest for test-runner
-RUN pip install --no-cache-dir pytest
+# Now copy the rest of the source
+COPY . /app/
 
 # Create directories
 RUN mkdir -p /root/.reticulum /app/scripts

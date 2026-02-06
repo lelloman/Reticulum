@@ -9,7 +9,6 @@ Test IDs:
 """
 
 import pytest
-import time
 
 
 class TestAnnounceE2E:
@@ -32,9 +31,6 @@ class TestAnnounceE2E:
             announce=True,
         )
         dest_hash = dest["destination_hash"]
-
-        # Wait for announce to propagate through transport
-        time.sleep(2)
 
         # Verify node-c can find path to node-a's destination
         result = node_c.wait_for_path(dest_hash, timeout=10.0)
@@ -59,9 +55,6 @@ class TestAnnounceE2E:
             app_data=app_data_content,
         )
 
-        # Wait for propagation
-        time.sleep(2)
-
         # Verify node-c received the announce (path exists)
         result = node_c.wait_for_path(dest["destination_hash"], timeout=10.0)
         assert result["path_found"] is True
@@ -80,9 +73,6 @@ class TestAnnounceE2E:
             announce=True,
         )
         dest_hash = dest["destination_hash"]
-
-        # Wait for propagation through transport
-        time.sleep(3)
 
         # Request path from node-a - should find it via the announce
         result = node_a.wait_for_path(dest_hash, timeout=10.0)
@@ -106,9 +96,6 @@ class TestAnnounceE2E:
             aspects=["bidir", "nodeC"],
             announce=True,
         )
-
-        # Wait for propagation
-        time.sleep(3)
 
         # Verify node-a can reach node-c
         result_a = node_a.wait_for_path(dest_c["destination_hash"], timeout=10.0)

@@ -178,11 +178,7 @@ def _send_data(link, data: bytes, timeout: float = 5.0) -> dict:
 
 
 def main():
-    if len(sys.argv) < 2:
-        print(json.dumps({"error": "Missing arguments"}))
-        sys.exit(1)
-
-    args = json.loads(sys.argv[1])
+    args = json.loads(sys.argv[1] if len(sys.argv) > 1 else sys.stdin.read())
     run(args)
 
 

@@ -35,7 +35,7 @@ class TestMalformedPackets:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Send valid data
         result = node_a.create_link_and_send(
@@ -101,8 +101,6 @@ class TestReplayAttacks:
                 pass
             time.sleep(0.1)
 
-        time.sleep(2)
-
         # System should still work normally
         path_result = node_a.wait_for_path(
             dest["destination_hash"],
@@ -163,7 +161,7 @@ class TestHashMismatch:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Try to link with wrong app_name (hash won't match)
         link = node_a.create_link(
@@ -196,7 +194,7 @@ class TestResourceIntegrity:
             announce=True,
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Send resource with known content
         test_data = os.urandom(2000)
@@ -297,7 +295,7 @@ class TestInputValidation:
             app_data="Test with unicode: \u00e9\u00f1\u00fc",
         )
 
-        time.sleep(2)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # Should be able to establish link
         link = node_a.create_link(

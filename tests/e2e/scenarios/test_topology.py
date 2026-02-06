@@ -79,8 +79,7 @@ class TestChainTopology:
             announce=True,
         )
 
-        # Wait for announce to propagate through chain
-        time.sleep(5)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # Create link from node-a (start of chain)
         link = node_a.create_link(
@@ -137,7 +136,7 @@ class TestChainTopology:
             announce=True,
         )
 
-        time.sleep(5)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         test_data = b"Hello across the chain!"
 
@@ -179,7 +178,7 @@ class TestRingTopology:
             announce=True,
         )
 
-        time.sleep(3)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         link = node_a.create_link(
             destination_hash=dest["destination_hash"],
@@ -207,7 +206,7 @@ class TestRingTopology:
             announce=True,
         )
 
-        time.sleep(3)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         # First verify link works
         link1 = node_a.create_link(
@@ -255,7 +254,8 @@ class TestMeshTopology:
             announce=True,
         )
 
-        time.sleep(4)
+        node_a.wait_for_path(dest_c["destination_hash"], timeout=10.0)
+        node_b.wait_for_path(dest_e["destination_hash"], timeout=10.0)
 
         # A → C
         link_a_c = node_a.create_link(
@@ -299,9 +299,6 @@ class TestMeshTopology:
             )
             destinations.append(dest)
 
-        # Wait for announces to propagate
-        time.sleep(5)
-
         # Verify node_a can find paths to all other destinations
         for i, dest in enumerate(destinations[1:], 1):  # Skip node_a's own dest
             path_result = node_a.wait_for_path(
@@ -327,7 +324,7 @@ class TestMeshTopology:
             announce=True,
         )
 
-        time.sleep(3)
+        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
         test_data = b"X" * 2000  # Multi-segment resource
 
