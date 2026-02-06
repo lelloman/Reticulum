@@ -211,13 +211,17 @@ def test_link_identification(args: dict) -> dict:
     aspects = args.get("aspects", [])
     timeout = args.get("timeout", 15.0)
 
-    # Request path
+    # Request path, re-requesting periodically
     if not RNS.Transport.has_path(dest_hash):
         RNS.Transport.request_path(dest_hash)
         start = time.time()
+        last_request = start
         while not RNS.Transport.has_path(dest_hash):
             if time.time() - start > timeout:
                 return {"error": "Path timeout", "success": False}
+            if time.time() - last_request > 2.0:
+                RNS.Transport.request_path(dest_hash)
+                last_request = time.time()
             time.sleep(0.1)
 
     # Recall identity

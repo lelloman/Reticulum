@@ -47,11 +47,15 @@ def run(args: dict) -> dict:
     # Request path if needed
     if not RNS.Transport.has_path(dest_hash):
         RNS.Transport.request_path(dest_hash)
-        # Wait for path
+        # Wait for path, re-requesting periodically
         start = time.time()
+        last_request = start
         while not RNS.Transport.has_path(dest_hash):
             if time.time() - start > timeout:
                 return {"error": "Path request timeout", "status": "NO_PATH"}
+            if time.time() - last_request > 2.0:
+                RNS.Transport.request_path(dest_hash)
+                last_request = time.time()
             time.sleep(0.1)
 
     # Recall the server identity from the announce
