@@ -183,6 +183,7 @@ class NodeInterface:
         app_name: str,
         aspects: Optional[list] = None,
         timeout: float = 10.0,
+        identify: bool = False,
     ) -> dict:
         """
         Create a link to a remote destination.
@@ -192,16 +193,21 @@ class NodeInterface:
             app_name: Application name used by the destination
             aspects: List of aspect strings used by the destination
             timeout: Link establishment timeout in seconds
+            identify: Whether to send identity after link is active
 
         Returns:
             dict with link_id, status, rtt
         """
-        return exec_on_node(self.container, "create_link", {
+        args = {
             "destination_hash": destination_hash,
             "app_name": app_name,
             "aspects": aspects or [],
             "timeout": timeout,
-        }, timeout=int(timeout) + 5)
+        }
+        if identify:
+            args["identify"] = True
+        return exec_on_node(self.container, "create_link", args,
+                            timeout=int(timeout) + 5)
 
     def send_data(
         self,

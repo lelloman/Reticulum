@@ -128,16 +128,16 @@ class TestLinkIdentification:
 
         node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
 
-        # Test link identification
-        result = run_advanced_test(
-            node_a.container,
-            "link_identification",
+        # Create link with identification via create_link.py
+        result = node_a.create_link(
             destination_hash=dest["destination_hash"],
             app_name=unique_app_name,
             aspects=aspects,
+            timeout=15.0,
+            identify=True,
         )
 
-        assert result.get("success"), f"Identification test failed: {result.get('error')}"
+        assert result["status"] == "ACTIVE", f"Link failed: {result.get('error')}"
         assert result.get("identification_sent") is True
 
 

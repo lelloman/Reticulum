@@ -191,91 +191,6 @@ def test_group_destination(args: dict) -> dict:
     }
 
 
-def test_link_identification(args: dict) -> dict:
-    """
-    Test link identification functionality.
-
-    Args:
-        destination_hash: Hex-encoded destination hash
-        app_name: Application name
-        aspects: List of aspect strings
-        timeout: Link timeout
-
-    Returns:
-        dict with link identification results
-    """
-    rns = RNS.Reticulum()
-
-    dest_hash = bytes.fromhex(args["destination_hash"])
-    app_name = args["app_name"]
-    aspects = args.get("aspects", [])
-    timeout = args.get("timeout", 15.0)
-
-    # Request path, re-requesting periodically
-    if not RNS.Transport.has_path(dest_hash):
-        RNS.Transport.request_path(dest_hash)
-        start = time.time()
-        last_request = start
-        while not RNS.Transport.has_path(dest_hash):
-            if time.time() - start > timeout:
-                return {"error": "Path timeout", "success": False}
-            if time.time() - last_request > 2.0:
-                RNS.Transport.request_path(dest_hash)
-                last_request = time.time()
-            time.sleep(0.1)
-
-    # Recall identity
-    server_identity = RNS.Identity.recall(dest_hash)
-    if server_identity is None:
-        return {"error": "Could not recall identity", "success": False}
-
-    # Create outgoing destination
-    server_destination = RNS.Destination(
-        server_identity,
-        RNS.Destination.OUT,
-        RNS.Destination.SINGLE,
-        app_name,
-        *aspects
-    )
-
-    # Create link
-    link = RNS.Link(server_destination)
-
-    # Wait for active
-    start = time.time()
-    while link.status != RNS.Link.ACTIVE:
-        if link.status == RNS.Link.CLOSED:
-            return {"error": "Link closed", "success": False}
-        if time.time() - start > timeout:
-            return {"error": "Link timeout", "success": False}
-        time.sleep(0.1)
-
-    # Create an identity for identification
-    local_identity = RNS.Identity()
-
-    # State tracking
-    identification_result = {"identified": False, "identity_hash": None}
-
-    def identification_callback(link, identity):
-        identification_result["identified"] = True
-        identification_result["identity_hash"] = identity.hash.hex() if identity else None
-
-    link.set_remote_identified_callback(identification_callback)
-
-    # Identify with our local identity
-    link.identify(local_identity)
-
-    # Wait for identification
-    time.sleep(1.0)
-
-    return {
-        "success": True,
-        "link_id": link.link_id.hex(),
-        "local_identity_hash": local_identity.hash.hex(),
-        "identification_sent": True,
-    }
-
-
 def run(args: dict) -> dict:
     """
     Execute an advanced feature test.
@@ -294,8 +209,6 @@ def run(args: dict) -> dict:
         return test_proof_strategy(args)
     elif operation == "group_destination":
         return test_group_destination(args)
-    elif operation == "link_identification":
-        return test_link_identification(args)
     else:
         return {"error": f"Unknown operation: {operation}", "success": False}
 

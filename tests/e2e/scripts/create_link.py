@@ -107,6 +107,14 @@ def run(args: dict) -> dict:
         "rtt": link.rtt if link.rtt else 0,
     }
 
+    # Identify if requested
+    if args.get("identify", False):
+        local_identity = RNS.Identity()
+        link.identify(local_identity)
+        time.sleep(1.0)
+        result["identification_sent"] = True
+        result["local_identity_hash"] = local_identity.hash.hex()
+
     # Send data if provided
     if data_hex:
         data = bytes.fromhex(data_hex)
