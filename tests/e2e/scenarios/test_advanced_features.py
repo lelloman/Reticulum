@@ -66,7 +66,7 @@ class TestBufferStreaming:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # Send multiple small packets (simulating stream)
         chunks = [f"Chunk {i}: " + "X" * 50 for i in range(5)]
@@ -126,7 +126,7 @@ class TestLinkIdentification:
             announce=True,
         )
 
-        path = node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+        path = node_a.wait_for_path(dest["destination_hash"], timeout=20.0)
         assert path.get("path_found"), f"Path not found: {path}"
 
         # Create link with identification via create_link.py
@@ -134,7 +134,7 @@ class TestLinkIdentification:
             destination_hash=dest["destination_hash"],
             app_name=unique_app_name,
             aspects=aspects,
-            timeout=20.0,
+            timeout=25.0,
             identify=True,
         )
 
@@ -182,7 +182,7 @@ class TestMTUSignaling:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # Send packet within MTU (should succeed)
         small_data = b"A" * 300
@@ -192,7 +192,7 @@ class TestMTUSignaling:
             app_name=unique_app_name,
             data=small_data,
             aspects=aspects,
-            link_timeout=15.0,
+            link_timeout=20.0,
             data_timeout=5.0,
         )
 
@@ -218,7 +218,7 @@ class TestEncryptionModes:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # Send sensitive data (should be encrypted in transit)
         sensitive_data = b"Secret message: password123"

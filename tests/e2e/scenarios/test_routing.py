@@ -35,7 +35,7 @@ class TestRoutingE2E:
         )
 
         # Check that node-a can find path via transport
-        result = node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        result = node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         assert result["path_found"] is True
         # Should be at least 1 hop (through transport)
@@ -56,7 +56,7 @@ class TestRoutingE2E:
         )
 
         # Verify node-c received the announce (has path)
-        result = node_c.wait_for_path(dest["destination_hash"], timeout=10.0)
+        result = node_c.wait_for_path(dest["destination_hash"], timeout=15.0)
         assert result["path_found"] is True
 
     def test_multihop_data_delivery(self, node_a, node_c, transport_node, unique_app_name):
@@ -74,7 +74,7 @@ class TestRoutingE2E:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # Create link and send data in one operation
         test_data = b"Multi-hop message through transport!"
@@ -106,10 +106,10 @@ class TestRoutingE2E:
         )
 
         # Both nodes should find path to transport
-        result_a = node_a.wait_for_path(dest_transport["destination_hash"], timeout=10.0)
+        result_a = node_a.wait_for_path(dest_transport["destination_hash"], timeout=15.0)
         assert result_a["path_found"] is True
 
-        result_c = node_c.wait_for_path(dest_transport["destination_hash"], timeout=10.0)
+        result_c = node_c.wait_for_path(dest_transport["destination_hash"], timeout=15.0)
         assert result_c["path_found"] is True
 
     def test_bidirectional_routing(self, node_a, node_c, unique_app_name):
@@ -134,8 +134,8 @@ class TestRoutingE2E:
             announce=True,
         )
 
-        node_a.wait_for_path(dest_c["destination_hash"], timeout=10.0)
-        node_c.wait_for_path(dest_a["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest_c["destination_hash"], timeout=15.0)
+        node_c.wait_for_path(dest_a["destination_hash"], timeout=15.0)
 
         # A can reach C
         link_a_to_c = node_a.create_link(

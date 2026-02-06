@@ -39,7 +39,7 @@ class TestThroughput:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # Test different sizes
         sizes = [1000, 5000, 10000]  # 1KB, 5KB, 10KB
@@ -93,7 +93,7 @@ class TestLatency:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         rtts = []
 
@@ -139,7 +139,7 @@ class TestLargeResource:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # 100KB of random data
         data_size = 100_000
@@ -185,7 +185,7 @@ class TestLinkSetupTime:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         setup_times = []
 
@@ -283,7 +283,7 @@ class TestBenchmarkReport:
             aspects=aspects,
             announce=True,
         )
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # 1. Link setup
         for i in range(3):

@@ -160,7 +160,7 @@ class TestRingTopology:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         link = node_a.create_link(
             destination_hash=dest["destination_hash"],
@@ -185,7 +185,7 @@ class TestRingTopology:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # First verify link works
         link1 = node_a.create_link(
@@ -230,8 +230,8 @@ class TestMeshTopology:
             announce=True,
         )
 
-        node_a.wait_for_path(dest_c["destination_hash"], timeout=10.0)
-        node_b.wait_for_path(dest_e["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest_c["destination_hash"], timeout=15.0)
+        node_b.wait_for_path(dest_e["destination_hash"], timeout=15.0)
 
         # A → C
         link_a_c = node_a.create_link(
@@ -294,7 +294,7 @@ class TestMeshTopology:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         test_data = b"X" * 2000  # Multi-segment resource
 

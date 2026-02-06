@@ -33,7 +33,7 @@ class TestAnnounceE2E:
         dest_hash = dest["destination_hash"]
 
         # Verify node-c can find path to node-a's destination
-        result = node_c.wait_for_path(dest_hash, timeout=10.0)
+        result = node_c.wait_for_path(dest_hash, timeout=15.0)
 
         assert result["path_found"] is True, "Path not found to announced destination"
         assert result["hops"] >= 1, "Expected at least 1 hop via transport"
@@ -56,7 +56,7 @@ class TestAnnounceE2E:
         )
 
         # Verify node-c received the announce (path exists)
-        result = node_c.wait_for_path(dest["destination_hash"], timeout=10.0)
+        result = node_c.wait_for_path(dest["destination_hash"], timeout=15.0)
         assert result["path_found"] is True
 
     def test_path_request_response(self, node_a, node_c, unique_app_name):
@@ -75,7 +75,7 @@ class TestAnnounceE2E:
         dest_hash = dest["destination_hash"]
 
         # Request path from node-a - should find it via the announce
-        result = node_a.wait_for_path(dest_hash, timeout=10.0)
+        result = node_a.wait_for_path(dest_hash, timeout=15.0)
 
         assert result["path_found"] is True
         assert result["destination_hash"] == dest_hash
@@ -98,9 +98,9 @@ class TestAnnounceE2E:
         )
 
         # Verify node-a can reach node-c
-        result_a = node_a.wait_for_path(dest_c["destination_hash"], timeout=10.0)
+        result_a = node_a.wait_for_path(dest_c["destination_hash"], timeout=15.0)
         assert result_a["path_found"] is True
 
         # Verify node-c can reach node-a
-        result_c = node_c.wait_for_path(dest_a["destination_hash"], timeout=10.0)
+        result_c = node_c.wait_for_path(dest_a["destination_hash"], timeout=15.0)
         assert result_c["path_found"] is True

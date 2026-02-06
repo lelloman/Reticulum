@@ -80,7 +80,7 @@ class TestPacketLoss:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # Apply 10% packet loss to node-a
         chaos_cleanup(node_a.container)
@@ -119,7 +119,7 @@ class TestPacketLoss:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         chaos_cleanup(node_a.container)
         try:
@@ -162,7 +162,7 @@ class TestHighLatency:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         chaos_cleanup(node_a.container)
         try:
@@ -196,7 +196,7 @@ class TestHighLatency:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         chaos_cleanup(node_a.container)
         try:
@@ -243,7 +243,7 @@ class TestNetworkPartition:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # First verify link works
         link1 = node_a.create_link(
@@ -299,7 +299,7 @@ class TestDaemonRestart:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # Verify initial link works
         link1 = node_a.create_link(
@@ -314,12 +314,9 @@ class TestDaemonRestart:
         restart_result = node_a.restart_rnsd()
         assert restart_result["success"], f"Failed to restart: {restart_result.get('error')}"
 
-        # Re-announce so the restarted node-a can discover the path
-        node_c.start_destination_server(
-            app_name=unique_app_name,
-            aspects=aspects,
-            announce=True,
-        )
+        # Re-announce the original destination so the restarted node-a
+        # can discover the path to it (node_a's path cache is empty)
+        node_c.announce(dest["destination_hash"])
 
         # Should be able to establish new link after restart
         link2 = node_a.create_link(
@@ -354,7 +351,7 @@ class TestPathRecovery:
         # Wait for path
         path_result = node_a.wait_for_path(
             dest["destination_hash"],
-            timeout=10.0,
+            timeout=15.0,
         )
 
         assert path_result["path_found"], "Initial path not found"
@@ -368,7 +365,7 @@ class TestPathRecovery:
 
         path_result2 = node_a.wait_for_path(
             dest2["destination_hash"],
-            timeout=10.0,
+            timeout=15.0,
         )
 
         assert path_result2["path_found"], "Second path not found"
@@ -417,7 +414,7 @@ class TestResourceRetry:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # Apply moderate packet loss
         chaos_cleanup(node_a.container)

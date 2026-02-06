@@ -30,7 +30,7 @@ class TestChannelE2E:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # Create link and send data in one operation
         result = node_a.create_link_and_send(
@@ -60,7 +60,7 @@ class TestChannelE2E:
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
 
         # Create link and send message
         result = node_a.create_link_and_send(
@@ -97,8 +97,8 @@ class TestChannelE2E:
             announce=True,
         )
 
-        node_a.wait_for_path(dest_c["destination_hash"], timeout=10.0)
-        node_c.wait_for_path(dest_a["destination_hash"], timeout=10.0)
+        node_a.wait_for_path(dest_c["destination_hash"], timeout=15.0)
+        node_c.wait_for_path(dest_a["destination_hash"], timeout=15.0)
 
         # A connects to C and sends
         result_a = node_a.create_link_and_send(

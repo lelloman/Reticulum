@@ -281,8 +281,18 @@ class NodeInterface:
 
         result = exec_on_node(self.container, "serve_destination", args, timeout=15)
 
-        # Wait a moment to ensure the announce propagates
+        # Wait for the announce to propagate, then re-announce for reliability.
+        # With a persistent daemon, many destinations accumulate in Transport
+        # and announce bandwidth can be tight — the second announce ensures
+        # propagation even if the first was rate-limited.
         time.sleep(1.0)
+        if announce:
+            try:
+                exec_on_node(self.container, "announce", {
+                    "destination_hash": result["destination_hash"],
+                }, timeout=5)
+            except Exception:
+                pass
 
         return result
 
