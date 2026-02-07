@@ -58,7 +58,11 @@ class TestChannelE2E:
             channel_mode=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+        path = node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+        if not path.get("path_found"):
+            node_c.announce(dest["destination_hash"])
+            path = node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+        assert path["path_found"], "Path not found after re-announce"
 
         test_data = b"Hello Channel API!"
 
@@ -95,7 +99,11 @@ class TestChannelE2E:
             channel_mode=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+        path = node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+        if not path.get("path_found"):
+            node_c.announce(dest["destination_hash"])
+            path = node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+        assert path["path_found"], "Path not found after re-announce"
 
         test_data = b"Verify on server side"
 

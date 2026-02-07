@@ -40,6 +40,7 @@ _destinations = {}  # hash_hex -> (destination, identity)
 _active_links = []
 _received_data = []
 _link_closed_events = []
+_callback_stats = {"resource_concluded": 0, "resource_started": 0, "link_established": 0}
 
 
 def _handle_serve_destination(args):
@@ -77,6 +78,7 @@ def _handle_serve_destination(args):
 
     # Set up link handler
     def link_established(link):
+        _callback_stats["link_established"] += 1
         _active_links.append(link)
         link.set_link_closed_callback(_link_closed)
         link.set_resource_strategy(RNS.Link.ACCEPT_ALL)
@@ -219,10 +221,11 @@ def _packet_received(message, packet):
 
 
 def _resource_started(resource):
-    pass
+    _callback_stats["resource_started"] += 1
 
 
 def _resource_concluded(resource):
+    _callback_stats["resource_concluded"] += 1
     try:
         if resource.status == RNS.Resource.COMPLETE:
             data = resource.data
@@ -340,6 +343,7 @@ COMMANDS = {
     "get_link_events": _handle_get_link_events,
     "get_active_links": _handle_get_active_links,
     "close_link": _handle_close_link,
+    "get_callback_stats": lambda args: dict(_callback_stats),
 }
 
 

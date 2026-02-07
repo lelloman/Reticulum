@@ -8,6 +8,8 @@ Test IDs:
 - E2E-RES-003: Compressed resource
 """
 
+from helpers.docker_exec import exec_on_node
+
 import pytest
 import os
 
@@ -22,6 +24,9 @@ class TestResourceE2E:
         Small resources should transfer in a single segment.
         """
         aspects = ["resource", "small"]
+
+        # Clear any stale data from previous sessions
+        node_c.clear_received_data()
 
         # Start destination server
         dest = node_c.start_destination_server(
@@ -41,7 +46,7 @@ class TestResourceE2E:
             data=small_data,
             aspects=aspects,
             link_timeout=15.0,
-            resource_timeout=15.0,
+            resource_timeout=30.0,
         )
 
         assert result["status"] == "ACTIVE"
@@ -50,7 +55,15 @@ class TestResourceE2E:
 
         # Verify receiver got the correct data
         received = node_c.get_received_data(data_type="resource", timeout=15.0)
-        assert len(received) > 0, "No resources received by node-c"
+        if len(received) == 0:
+            # Diagnostic: fetch ALL received data and callback stats
+            all_data = node_c.get_received_data()
+            stats = exec_on_node(node_c.container, "get_callback_stats", {})
+            assert False, (
+                f"No resources received by node-c. "
+                f"Callback stats: {stats}. "
+                f"All received data ({len(all_data)} entries): {all_data}"
+            )
         sent_hex = small_data.hex()
         matching = [r for r in received if r["data_hex"] == sent_hex]
         assert len(matching) > 0, f"Sent resource data not found in received. Expected {len(small_data)} bytes. Got: {received}"

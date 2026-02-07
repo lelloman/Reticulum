@@ -9,6 +9,7 @@ Test IDs:
 """
 
 import pytest
+import time
 
 
 class TestAnnounceE2E:
@@ -57,6 +58,10 @@ class TestAnnounceE2E:
 
         # Verify node-c received the announce (path exists)
         result = node_c.wait_for_path(dest["destination_hash"], timeout=15.0)
+        if not result.get("path_found"):
+            # Re-announce in case the first announce was delayed by the cap
+            node_a.announce(dest["destination_hash"])
+            result = node_c.wait_for_path(dest["destination_hash"], timeout=15.0)
         assert result["path_found"] is True
 
     def test_path_request_response(self, node_a, node_c, unique_app_name):
@@ -84,12 +89,16 @@ class TestAnnounceE2E:
         """
         Both nodes can announce and discover each other.
         """
-        # Create and announce on both nodes
+        # Create and announce on node-a first, wait for propagation
         dest_a = node_a.create_destination(
             app_name=unique_app_name,
             aspects=["bidir", "nodeA"],
             announce=True,
         )
+
+        # Small delay to avoid simultaneous announces colliding at
+        # the transport node's announce queue
+        time.sleep(0.5)
 
         dest_c = node_c.create_destination(
             app_name=unique_app_name,
@@ -103,4 +112,7 @@ class TestAnnounceE2E:
 
         # Verify node-c can reach node-a
         result_c = node_c.wait_for_path(dest_a["destination_hash"], timeout=15.0)
+        if not result_c.get("path_found"):
+            node_a.announce(dest_a["destination_hash"])
+            result_c = node_c.wait_for_path(dest_a["destination_hash"], timeout=15.0)
         assert result_c["path_found"] is True

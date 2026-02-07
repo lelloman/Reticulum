@@ -188,13 +188,20 @@ class TestResourceIntegrity:
         """
         aspects = ["security", "integrity"]
 
+        # Clear any stale data from previous sessions
+        node_c.clear_received_data()
+
         dest = node_c.start_destination_server(
             app_name=unique_app_name,
             aspects=aspects,
             announce=True,
         )
 
-        node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+        path = node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+        if not path.get("path_found"):
+            node_c.announce(dest["destination_hash"])
+            path = node_a.wait_for_path(dest["destination_hash"], timeout=15.0)
+        assert path["path_found"], "Path not found after re-announce"
 
         # Send resource with known content
         test_data = os.urandom(2000)
@@ -214,7 +221,11 @@ class TestResourceIntegrity:
 
         # Verify received bytes match sent bytes (integrity)
         received = node_c.get_received_data(data_type="resource", timeout=15.0)
-        assert len(received) > 0, "No resources received by node-c"
+        assert len(received) > 0, (
+            f"No resources received by node-c. "
+            f"Transfer result: status={result['status']}, "
+            f"resource_completed={result.get('resource_completed')}"
+        )
         sent_hex = test_data.hex()
         matching = [r for r in received if r["data_hex"] == sent_hex]
         assert len(matching) > 0, "Resource integrity check failed: received data does not match sent data"
