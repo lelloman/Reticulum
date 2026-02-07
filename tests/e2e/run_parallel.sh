@@ -193,20 +193,86 @@ done
 
 # ── Print summary ───────────────────────────────────────────────
 echo ""
-echo "=== Results ==="
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║                        TEST RESULTS                        ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+
+total_passed=0
+total_failed=0
+total_skipped=0
+total_errors=0
+ALL_FAILURES=()
+
 for log_file in "${LOG_FILES[@]}"; do
     shard_id=$(echo "$log_file" | grep -oP 'shard-\K[0-9]+')
+
+    # Extract the pytest summary line (e.g. "5 passed, 2 failed in 10.5s")
+    summary_line=$(grep -E '=+ .*(passed|failed|error).* =+' "$log_file" | tail -1)
+
+    # Parse counts from summary line
+    s_passed=$(echo "$summary_line" | grep -oP '\d+(?= passed)' || echo 0)
+    s_failed=$(echo "$summary_line" | grep -oP '\d+(?= failed)' || echo 0)
+    s_skipped=$(echo "$summary_line" | grep -oP '\d+(?= skipped)' || echo 0)
+    s_errors=$(echo "$summary_line" | grep -oP '\d+(?= error)' || echo 0)
+    s_passed=${s_passed:-0}; s_failed=${s_failed:-0}; s_skipped=${s_skipped:-0}; s_errors=${s_errors:-0}
+
+    total_passed=$((total_passed + s_passed))
+    total_failed=$((total_failed + s_failed))
+    total_skipped=$((total_skipped + s_skipped))
+    total_errors=$((total_errors + s_errors))
+
+    # Collect individual failure names
+    while IFS= read -r line; do
+        ALL_FAILURES+=("$line")
+    done < <(grep -oP '(?<=FAILED ).*' "$log_file" 2>/dev/null)
+
+    # Print per-shard one-liner
+    if [ "$s_failed" -gt 0 ] || [ "$s_errors" -gt 0 ]; then
+        status_icon="FAIL"
+    else
+        status_icon=" ok "
+    fi
+    printf "  [%s] Shard %s: %s passed" "$status_icon" "$shard_id" "$s_passed"
+    [ "$s_failed" -gt 0 ] && printf ", %s failed" "$s_failed"
+    [ "$s_skipped" -gt 0 ] && printf ", %s skipped" "$s_skipped"
+    [ "$s_errors" -gt 0 ] && printf ", %s errors" "$s_errors"
     echo ""
-    echo "--- Shard $shard_id ---"
-    # Print the pytest summary line (short results + passed/failed counts)
-    grep -E '(PASSED|FAILED|ERROR|passed|failed|error)' "$log_file" | tail -3
 done
 
 echo ""
+echo "── Totals ────────────────────────────────────────────────────"
+printf "   %s passed, %s failed, %s skipped, %s errors\n" \
+    "$total_passed" "$total_failed" "$total_skipped" "$total_errors"
+
+if [ ${#ALL_FAILURES[@]} -gt 0 ]; then
+    echo ""
+    echo "── Failed tests ──────────────────────────────────────────────"
+    for f in "${ALL_FAILURES[@]}"; do
+        echo "   FAILED $f"
+    done
+    echo ""
+    echo "── Failure details ───────────────────────────────────────────"
+    for log_file in "${LOG_FILES[@]}"; do
+        shard_id=$(echo "$log_file" | grep -oP 'shard-\K[0-9]+')
+        # Extract the FAILURES section (between === FAILURES === and === short test summary ===)
+        failure_block=$(sed -n '/^=\+ FAILURES =\+$/,/^=\+ short test summary/p' "$log_file" 2>/dev/null | head -n -1)
+        if [ -n "$failure_block" ]; then
+            echo ""
+            echo "   --- Shard $shard_id ---"
+            echo "$failure_block" | while IFS= read -r line; do
+                echo "   $line"
+            done
+        fi
+    done
+fi
+
+echo ""
 if [ $overall_exit -eq 0 ]; then
-    echo "=== All shards PASSED ==="
+    echo "=== ALL $total_passed TESTS PASSED ==="
 else
-    echo "=== Some shards FAILED ==="
+    echo "=== $total_failed FAILED, $total_passed passed ==="
     echo "Full logs at: /tmp/rns-e2e-shard-*.log"
 fi
 
