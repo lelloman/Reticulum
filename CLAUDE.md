@@ -462,23 +462,36 @@ rns-rs/
 │   │   └── identity.rs         # High-level Identity (encrypt/decrypt/sign/verify)
 │   └── tests/
 │       └── interop.rs          # 11 interop tests vs Python vectors
-├── rns-core/                   # Phase 2: Wire protocol types
+├── rns-core/                   # Phase 2+3: Wire protocol + Transport routing
 │   ├── Cargo.toml              # depends on rns-crypto
 │   ├── src/
 │   │   ├── lib.rs
-│   │   ├── constants.rs        # All protocol constants (MTU, flags, types)
+│   │   ├── constants.rs        # All protocol + transport constants
 │   │   ├── hash.rs             # full_hash, truncated_hash, name_hash
 │   │   ├── packet.rs           # PacketFlags + RawPacket pack/unpack/hash
 │   │   ├── destination.rs      # expand_name, destination_hash
 │   │   ├── announce.rs         # AnnounceData pack/unpack/validate
-│   │   └── receipt.rs          # Proof validation (explicit/implicit)
+│   │   ├── receipt.rs          # Proof validation (explicit/implicit)
+│   │   └── transport/          # Phase 3: Routing engine
+│   │       ├── mod.rs          # TransportEngine struct, public API, dispatch
+│   │       ├── types.rs        # InterfaceId, InterfaceInfo, TransportAction, TransportConfig
+│   │       ├── tables.rs       # PathEntry, AnnounceEntry, ReverseEntry, LinkEntry, RateEntry
+│   │       ├── dedup.rs        # PacketHashlist (double-buffered dedup)
+│   │       ├── pathfinder.rs   # Path update decisions, timebase extraction
+│   │       ├── announce_proc.rs # Announce retransmit building, path entry creation
+│   │       ├── inbound.rs      # Inbound packet dispatch, transport forwarding
+│   │       ├── outbound.rs     # Outbound header rewriting, interface selection
+│   │       ├── rate_limit.rs   # Per-destination announce rate limiting
+│   │       └── jobs.rs         # Periodic maintenance: cull tables, retransmit
 │   └── tests/
-│       └── interop.rs          # 7 interop tests vs Python vectors
+│       ├── interop.rs              # 7 interop tests vs Python vectors
+│       └── transport_integration.rs # 15 integration tests for transport engine
 └── tests/
     ├── generate_vectors.py     # Generates JSON test fixtures from Python RNS
     └── fixtures/
         ├── crypto/             # 11 JSON fixture files (Phase 1)
-        └── protocol/           # 6 JSON fixture files (Phase 2)
+        ├── protocol/           # 6 JSON fixture files (Phase 2)
+        └── transport/          # 4 JSON fixture files (Phase 3)
 ```
 
 ### Key APIs
@@ -499,6 +512,16 @@ rns-rs/
 - `unpack(data, has_ratchet)` → parsed fields
 - `validate(dest_hash)` → `ValidatedAnnounce` (signature + hash verification)
 
+**rns-core::transport::TransportEngine**
+- `new(config)` → create engine with `TransportConfig`
+- `register_interface(info)`, `deregister_interface(id)` — manage interfaces
+- `register_destination(hash, type)`, `deregister_destination(hash)` — manage local destinations
+- `handle_inbound(raw, iface, now, rng)` → `Vec<TransportAction>` — process incoming packet
+- `handle_outbound(packet, dest_type, attached_iface, now)` → `Vec<TransportAction>` — route outgoing packet
+- `tick(now, rng)` → `Vec<TransportAction>` — periodic maintenance (retransmit, cull)
+- `has_path(hash)`, `hops_to(hash)`, `next_hop(hash)`, `next_hop_interface(hash)` — path queries
+- Action queue model: no callbacks, no I/O; caller inspects `TransportAction` variants and performs I/O
+
 ### Running Tests
 ```bash
 cd rns-rs
@@ -516,5 +539,5 @@ cargo test -p rns-core
 
 ### Test Counts
 - **rns-crypto**: 65 unit tests + 11 interop tests = 76
-- **rns-core**: 39 unit tests + 7 interop tests = 46
-- **Total**: 122 tests
+- **rns-core**: 121 unit tests + 7 interop tests + 15 integration tests = 143
+- **Total**: 219 tests
