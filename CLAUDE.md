@@ -437,12 +437,12 @@ Python >= 3.7
 
 ## Rust Port (`rns-rs/`)
 
-A `no_std`-compatible Rust implementation of RNS cryptography and wire protocol, organized as a Cargo workspace with zero external dependencies.
+A Rust implementation of RNS, organized as a Cargo workspace. `rns-crypto` and `rns-core` are `no_std`-compatible with zero external dependencies. `rns-net` is `std`-only and drives the core via real sockets and threads.
 
 ### Workspace Structure
 ```
 rns-rs/
-├── Cargo.toml                  # Workspace: members = ["rns-crypto", "rns-core"]
+├── Cargo.toml                  # Workspace: members = ["rns-crypto", "rns-core", "rns-net"]
 ├── rns-crypto/                 # Phase 1: Crypto primitives
 │   ├── Cargo.toml
 │   ├── src/
@@ -462,7 +462,7 @@ rns-rs/
 │   │   └── identity.rs         # High-level Identity (encrypt/decrypt/sign/verify)
 │   └── tests/
 │       └── interop.rs          # 11 interop tests vs Python vectors
-├── rns-core/                   # Phase 2+3: Wire protocol + Transport routing
+├── rns-core/                   # Phase 2+3+4a+4b: Wire protocol + Transport + Link + Resource
 │   ├── Cargo.toml              # depends on rns-crypto
 │   ├── src/
 │   │   ├── lib.rs
@@ -472,26 +472,50 @@ rns-rs/
 │   │   ├── destination.rs      # expand_name, destination_hash
 │   │   ├── announce.rs         # AnnounceData pack/unpack/validate
 │   │   ├── receipt.rs          # Proof validation (explicit/implicit)
-│   │   └── transport/          # Phase 3: Routing engine
-│   │       ├── mod.rs          # TransportEngine struct, public API, dispatch
-│   │       ├── types.rs        # InterfaceId, InterfaceInfo, TransportAction, TransportConfig
-│   │       ├── tables.rs       # PathEntry, AnnounceEntry, ReverseEntry, LinkEntry, RateEntry
-│   │       ├── dedup.rs        # PacketHashlist (double-buffered dedup)
-│   │       ├── pathfinder.rs   # Path update decisions, timebase extraction
-│   │       ├── announce_proc.rs # Announce retransmit building, path entry creation
-│   │       ├── inbound.rs      # Inbound packet dispatch, transport forwarding
-│   │       ├── outbound.rs     # Outbound header rewriting, interface selection
-│   │       ├── rate_limit.rs   # Per-destination announce rate limiting
-│   │       └── jobs.rs         # Periodic maintenance: cull tables, retransmit
+│   │   ├── transport/          # Phase 3: Routing engine
+│   │   │   ├── mod.rs, types.rs, tables.rs, dedup.rs
+│   │   │   ├── pathfinder.rs, announce_proc.rs
+│   │   │   ├── inbound.rs, outbound.rs, rate_limit.rs, jobs.rs
+│   │   ├── link/               # Phase 4a: Link engine
+│   │   │   ├── mod.rs, types.rs, handshake.rs
+│   │   │   ├── crypto.rs, keepalive.rs, identify.rs
+│   │   ├── channel/            # Phase 4a: Channel messaging
+│   │   │   ├── mod.rs, types.rs, envelope.rs
+│   │   ├── buffer/             # Phase 4a: Buffer streaming
+│   │   │   ├── mod.rs, types.rs
+│   │   ├── msgpack.rs          # Phase 4b: Minimal msgpack codec
+│   │   └── resource/           # Phase 4b: Resource transfer
+│   │       ├── mod.rs, types.rs, advertisement.rs
+│   │       ├── parts.rs, window.rs, sender.rs, receiver.rs, proof.rs
 │   └── tests/
-│       ├── interop.rs              # 7 interop tests vs Python vectors
-│       └── transport_integration.rs # 15 integration tests for transport engine
+│       ├── interop.rs              # 12 interop tests vs Python vectors
+│       ├── transport_integration.rs # 15 integration tests
+│       ├── link_integration.rs     # 9 link/channel/buffer integration tests
+│       └── resource_integration.rs # 8 resource transfer integration tests
+├── rns-net/                    # Phase 5a: Network node (std-only)
+│   ├── Cargo.toml              # depends on rns-core, rns-crypto, log, libc
+│   ├── src/
+│   │   ├── lib.rs              # Public API, re-exports
+│   │   ├── hdlc.rs             # HDLC escape/unescape/frame + streaming Decoder
+│   │   ├── event.rs            # Event enum, channel helpers
+│   │   ├── time.rs             # now() → f64 Unix epoch
+│   │   ├── driver.rs           # Callbacks trait, Driver event loop + dispatch
+│   │   ├── node.rs             # RnsNode start/shutdown lifecycle
+│   │   └── interface/
+│   │       ├── mod.rs          # Writer trait, InterfaceEntry
+│   │       └── tcp.rs          # TCP client: connect, reconnect, reader thread
+│   ├── examples/
+│   │   └── tcp_connect.rs      # Connect to Python RNS, log announces
+│   └── tests/
+│       └── python_interop.rs   # Rust↔Python announce reception
 └── tests/
     ├── generate_vectors.py     # Generates JSON test fixtures from Python RNS
     └── fixtures/
         ├── crypto/             # 11 JSON fixture files (Phase 1)
         ├── protocol/           # 6 JSON fixture files (Phase 2)
-        └── transport/          # 4 JSON fixture files (Phase 3)
+        ├── transport/          # 4 JSON fixture files (Phase 3)
+        ├── link/               # 5 JSON fixture files (Phase 4a)
+        └── resource/           # 6 JSON fixture files (Phase 4b)
 ```
 
 ### Key APIs
@@ -522,6 +546,17 @@ rns-rs/
 - `has_path(hash)`, `hops_to(hash)`, `next_hop(hash)`, `next_hop_interface(hash)` — path queries
 - Action queue model: no callbacks, no I/O; caller inspects `TransportAction` variants and performs I/O
 
+**rns-net::RnsNode**
+- `start(config, callbacks)` → connect interfaces, start driver + timer threads
+- `shutdown(self)` → stop driver, wait for thread exit
+- Thread model: single Driver thread (owns TransportEngine), per-interface Reader threads, Timer thread
+- All communication via single `mpsc::channel()` of `Event` variants
+
+**rns-net::Callbacks** (trait)
+- `on_announce(dest_hash, identity_hash, public_key, app_data, hops)` — announce received
+- `on_path_updated(dest_hash, hops)` — path table updated
+- `on_local_delivery(dest_hash, raw, packet_hash)` — packet for local destination
+
 ### Running Tests
 ```bash
 cd rns-rs
@@ -535,9 +570,11 @@ cargo test
 # Run only one crate
 cargo test -p rns-crypto
 cargo test -p rns-core
+cargo test -p rns-net
 ```
 
 ### Test Counts
 - **rns-crypto**: 65 unit tests + 11 interop tests = 76
-- **rns-core**: 121 unit tests + 7 interop tests + 15 integration tests = 143
-- **Total**: 219 tests
+- **rns-core**: 331 unit tests + 12 interop tests + 32 integration tests = 375
+- **rns-net**: 35 unit tests + 1 interop test = 36
+- **Total**: 487 tests
