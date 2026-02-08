@@ -492,20 +492,26 @@ rns-rs/
 │       ├── transport_integration.rs # 15 integration tests
 │       ├── link_integration.rs     # 9 link/channel/buffer integration tests
 │       └── resource_integration.rs # 8 resource transfer integration tests
-├── rns-net/                    # Phase 5a: Network node (std-only)
+├── rns-net/                    # Phase 5a+5b: Network node (std-only)
 │   ├── Cargo.toml              # depends on rns-core, rns-crypto, log, libc
 │   ├── src/
 │   │   ├── lib.rs              # Public API, re-exports
 │   │   ├── hdlc.rs             # HDLC escape/unescape/frame + streaming Decoder
-│   │   ├── event.rs            # Event enum, channel helpers
+│   │   ├── event.rs            # Event enum (Frame, InterfaceUp/Down, Tick, Shutdown)
 │   │   ├── time.rs             # now() → f64 Unix epoch
+│   │   ├── config.rs           # ConfigObj parser for Python RNS config files
+│   │   ├── storage.rs          # Identity + known destinations persistence
 │   │   ├── driver.rs           # Callbacks trait, Driver event loop + dispatch
-│   │   ├── node.rs             # RnsNode start/shutdown lifecycle
+│   │   ├── node.rs             # RnsNode start/shutdown/from_config lifecycle
 │   │   └── interface/
 │   │       ├── mod.rs          # Writer trait, InterfaceEntry
-│   │       └── tcp.rs          # TCP client: connect, reconnect, reader thread
+│   │       ├── tcp.rs          # TCP client: connect, reconnect, reader thread
+│   │       ├── tcp_server.rs   # TCP server: accept, per-client reader threads
+│   │       ├── udp.rs          # UDP broadcast interface (no HDLC framing)
+│   │       └── local.rs        # Unix abstract socket + TCP fallback
 │   ├── examples/
-│   │   └── tcp_connect.rs      # Connect to Python RNS, log announces
+│   │   ├── tcp_connect.rs      # Connect to Python RNS, log announces
+│   │   └── rnsd.rs             # Rust rnsd daemon (config-driven)
 │   └── tests/
 │       └── python_interop.rs   # Rust↔Python announce reception
 └── tests/
@@ -547,6 +553,7 @@ rns-rs/
 - Action queue model: no callbacks, no I/O; caller inspects `TransportAction` variants and performs I/O
 
 **rns-net::RnsNode**
+- `from_config(config_path, callbacks)` → read config file, load/create identity, start interfaces
 - `start(config, callbacks)` → connect interfaces, start driver + timer threads
 - `shutdown(self)` → stop driver, wait for thread exit
 - Thread model: single Driver thread (owns TransportEngine), per-interface Reader threads, Timer thread
@@ -556,6 +563,7 @@ rns-rs/
 - `on_announce(dest_hash, identity_hash, public_key, app_data, hops)` — announce received
 - `on_path_updated(dest_hash, hops)` — path table updated
 - `on_local_delivery(dest_hash, raw, packet_hash)` — packet for local destination
+- `on_interface_up(id)` / `on_interface_down(id)` — interface state changes (default no-op)
 
 ### Running Tests
 ```bash
@@ -576,5 +584,5 @@ cargo test -p rns-net
 ### Test Counts
 - **rns-crypto**: 65 unit tests + 11 interop tests = 76
 - **rns-core**: 331 unit tests + 12 interop tests + 32 integration tests = 375
-- **rns-net**: 35 unit tests + 1 interop test = 36
-- **Total**: 487 tests
+- **rns-net**: 79 unit tests + 1 interop test = 80
+- **Total**: 531 tests
