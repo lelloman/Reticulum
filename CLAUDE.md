@@ -492,15 +492,19 @@ rns-rs/
 │       ├── transport_integration.rs # 15 integration tests
 │       ├── link_integration.rs     # 9 link/channel/buffer integration tests
 │       └── resource_integration.rs # 8 resource transfer integration tests
-├── rns-net/                    # Phase 5a+5b: Network node (std-only)
+├── rns-net/                    # Phase 5a-5d: Network node (std-only)
 │   ├── Cargo.toml              # depends on rns-core, rns-crypto, log, libc
 │   ├── src/
 │   │   ├── lib.rs              # Public API, re-exports
 │   │   ├── hdlc.rs             # HDLC escape/unescape/frame + streaming Decoder
+│   │   ├── kiss.rs             # KISS framing (FEND/FESC) + streaming Decoder
+│   │   ├── rnode_kiss.rs       # RNode KISS commands + streaming RNodeDecoder
 │   │   ├── event.rs            # Event enum (Frame, InterfaceUp/Down, Tick, Shutdown)
 │   │   ├── time.rs             # now() → f64 Unix epoch
 │   │   ├── config.rs           # ConfigObj parser for Python RNS config files
 │   │   ├── storage.rs          # Identity + known destinations persistence
+│   │   ├── ifac.rs             # IFAC derive/mask/unmask (Interface Access Codes)
+│   │   ├── serial.rs           # Raw serial I/O via libc termios
 │   │   ├── driver.rs           # Callbacks trait, Driver event loop + dispatch
 │   │   ├── node.rs             # RnsNode start/shutdown/from_config lifecycle
 │   │   └── interface/
@@ -508,12 +512,18 @@ rns-rs/
 │   │       ├── tcp.rs          # TCP client: connect, reconnect, reader thread
 │   │       ├── tcp_server.rs   # TCP server: accept, per-client reader threads
 │   │       ├── udp.rs          # UDP broadcast interface (no HDLC framing)
-│   │       └── local.rs        # Unix abstract socket + TCP fallback
+│   │       ├── local.rs        # Unix abstract socket + TCP fallback
+│   │       ├── serial_iface.rs # Serial + HDLC framing, reconnect
+│   │       ├── kiss_iface.rs   # KISS + flow control, TNC config
+│   │       ├── pipe.rs         # Subprocess stdin/stdout + HDLC, auto-respawn
+│   │       ├── rnode.rs        # RNode LoRa radio, multi-sub, flow control
+│   │       └── backbone.rs     # TCP mesh backbone, Linux epoll
 │   ├── examples/
 │   │   ├── tcp_connect.rs      # Connect to Python RNS, log announces
 │   │   └── rnsd.rs             # Rust rnsd daemon (config-driven)
 │   └── tests/
-│       └── python_interop.rs   # Rust↔Python announce reception
+│       ├── python_interop.rs   # Rust↔Python announce reception
+│       └── ifac_interop.rs     # IFAC mask/unmask vs Python vectors
 └── tests/
     ├── generate_vectors.py     # Generates JSON test fixtures from Python RNS
     └── fixtures/
@@ -521,7 +531,8 @@ rns-rs/
         ├── protocol/           # 6 JSON fixture files (Phase 2)
         ├── transport/          # 4 JSON fixture files (Phase 3)
         ├── link/               # 5 JSON fixture files (Phase 4a)
-        └── resource/           # 6 JSON fixture files (Phase 4b)
+        ├── resource/           # 6 JSON fixture files (Phase 4b)
+        └── ifac/               # 1 JSON fixture file (Phase 5c)
 ```
 
 ### Key APIs
@@ -584,5 +595,5 @@ cargo test -p rns-net
 ### Test Counts
 - **rns-crypto**: 65 unit tests + 11 interop tests = 76
 - **rns-core**: 331 unit tests + 12 interop tests + 32 integration tests = 375
-- **rns-net**: 79 unit tests + 1 interop test = 80
-- **Total**: 531 tests
+- **rns-net**: 152 unit tests + 2 interop tests = 154
+- **Total**: 605 tests
