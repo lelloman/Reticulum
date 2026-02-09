@@ -462,10 +462,11 @@ rns-rs/
 │   │   └── identity.rs         # High-level Identity (encrypt/decrypt/sign/verify)
 │   └── tests/
 │       └── interop.rs          # 11 interop tests vs Python vectors
-├── rns-core/                   # Phase 2+3+4a+4b: Wire protocol + Transport + Link + Resource
+├── rns-core/                   # Phase 2+3+4a+4b+9a: Wire protocol + Transport + Link + Resource + Types
 │   ├── Cargo.toml              # depends on rns-crypto
 │   ├── src/
 │   │   ├── lib.rs
+│   │   ├── types.rs            # Phase 9a: DestHash, IdentityHash, LinkId, PacketHash, DestinationType, Direction, ProofStrategy
 │   │   ├── constants.rs        # All protocol + transport constants
 │   │   ├── hash.rs             # full_hash, truncated_hash, name_hash
 │   │   ├── packet.rs           # PacketFlags + RawPacket pack/unpack/hash
@@ -492,10 +493,11 @@ rns-rs/
 │       ├── transport_integration.rs # 15 integration tests
 │       ├── link_integration.rs     # 9 link/channel/buffer integration tests
 │       └── resource_integration.rs # 8 resource transfer integration tests
-├── rns-net/                    # Phase 5a-5d+6a+7+8: Network node (std-only)
+├── rns-net/                    # Phase 5a-5d+6a+7+8+9: Network node (std-only)
 │   ├── Cargo.toml              # depends on rns-core, rns-crypto, log, libc, socket2
 │   ├── src/
 │   │   ├── lib.rs              # Public API, re-exports
+│   │   ├── destination.rs      # Phase 9b: Destination + AnnouncedIdentity structs
 │   │   ├── hdlc.rs             # HDLC escape/unescape/frame + streaming Decoder
 │   │   ├── kiss.rs             # KISS framing (FEND/FESC) + streaming Decoder
 │   │   ├── rnode_kiss.rs       # RNode KISS commands + streaming RNodeDecoder
@@ -528,7 +530,8 @@ rns-rs/
 │   │       └── auto.rs         # AutoInterface: IPv6 multicast LAN discovery (Phase 8d)
 │   ├── examples/
 │   │   ├── tcp_connect.rs      # Connect to Python RNS, log announces
-│   │   └── rnsd.rs             # Rust rnsd daemon (config-driven)
+│   │   ├── rnsd.rs             # Rust rnsd daemon (config-driven)
+│   │   └── echo.rs             # Phase 9f: Echo server/client via TCP loopback
 │   └── tests/
 │       ├── python_interop.rs   # Rust↔Python announce reception
 │       └── ifac_interop.rs     # IFAC mask/unmask vs Python vectors
@@ -584,11 +587,23 @@ rns-rs/
 - `has_path(hash)`, `hops_to(hash)`, `next_hop(hash)`, `next_hop_interface(hash)` — path queries
 - Action queue model: no callbacks, no I/O; caller inspects `TransportAction` variants and performs I/O
 
+**rns-net::Destination** (Phase 9b — pure data struct)
+- `single_in(app_name, aspects, identity_hash)` → inbound SINGLE destination
+- `single_out(app_name, aspects, recalled)` → outbound SINGLE from AnnouncedIdentity
+- `plain(app_name, aspects)` → unencrypted destination
+- `set_proof_strategy(strategy)` → builder for ProveAll/ProveApp/ProveNone
+
 **rns-net::RnsNode**
 - `from_config(config_path, callbacks)` → read config file, load/create identity, start interfaces
 - `start(config, callbacks)` → connect interfaces, start driver + timer threads
 - `connect_shared(config, callbacks)` → connect as client to running daemon (Phase 8e)
 - `shutdown(self)` → stop driver, wait for thread exit
+- `announce(dest, identity, app_data)` → build + broadcast announce packet (Phase 9c)
+- `send_packet(dest, data)` → encrypt (SINGLE) + send, returns PacketHash (Phase 9d)
+- `register_destination_with_proof(dest, signing_key)` → register + proof strategy (Phase 9d)
+- `request_path(dest_hash)` → send path request to network (Phase 9c)
+- `has_path(dest_hash)` / `hops_to(dest_hash)` → path queries (Phase 9c)
+- `recall_identity(dest_hash)` → get AnnouncedIdentity from cache (Phase 9c)
 - `create_link(dest_hash, dest_sig_pub)` → initiate link to remote destination
 - `identify_on_link(link_id, identity_prv_key)` → identify on established link
 - `send_request(link_id, path, data)` → send request on link
@@ -597,24 +612,19 @@ rns-rs/
 - Thread model: single Driver thread (owns TransportEngine), per-interface Reader threads, Timer thread
 - All communication via single `mpsc::channel()` of `Event` variants
 
-**rns-net::Callbacks** (trait)
-- `on_announce(dest_hash, identity_hash, public_key, app_data, hops)` — announce received
-- `on_path_updated(dest_hash, hops)` — path table updated
-- `on_local_delivery(dest_hash, raw, packet_hash)` — packet for local destination
+**rns-net::Callbacks** (trait — all params use typed wrappers since Phase 9e)
+- `on_announce(announced: AnnouncedIdentity)` — announce received (structured data)
+- `on_path_updated(dest_hash: DestHash, hops)` — path table updated
+- `on_local_delivery(dest_hash: DestHash, data, packet_hash: PacketHash)` — packet for local destination
+- `on_proof(dest_hash: DestHash, packet_hash: PacketHash, rtt)` — proof received for sent packet (Phase 9d)
+- `on_proof_requested(dest_hash: DestHash, packet_hash: PacketHash) -> bool` — ProveApp strategy query (Phase 9d)
 - `on_interface_up(id)` / `on_interface_down(id)` — interface state changes (default no-op)
-- `on_link_established(link_id, rtt, is_initiator)` / `on_link_closed(link_id)` — link lifecycle
-- `on_remote_identified(link_id, identity_hash)` — remote identity verified on link
-- `on_response(link_id, request_id, data)` — response to a link request
-- `on_channel_message(link_id, msgtype, payload)` — channel message received
-- `on_link_data(link_id, context, data)` — generic link data received
-- `on_resource_received/completed/failed/progress(link_id, ...)` — resource transfer lifecycle
-- `on_link_established(link_id, rtt, is_initiator)` — link became active
-- `on_link_closed(link_id)` — link closed
-- `on_remote_identified(link_id, identity_hash)` — remote identified on link
-- `on_response(link_id, request_id, data)` — response received on link
-- `on_channel_message(link_id, msgtype, payload)` — channel message received
-- `on_link_data(link_id, context, data)` — generic link data received
-- `on_resource_received(link_id, data, metadata)` — resource transfer completed
+- `on_link_established(link_id: LinkId, rtt, is_initiator)` / `on_link_closed(link_id: LinkId)` — link lifecycle
+- `on_remote_identified(link_id: LinkId, identity_hash: IdentityHash)` — remote identity verified
+- `on_response(link_id: LinkId, request_id, data)` — response to a link request
+- `on_channel_message(link_id: LinkId, msgtype, payload)` — channel message received
+- `on_link_data(link_id: LinkId, context, data)` — generic link data received
+- `on_resource_received/completed/failed/progress(link_id: LinkId, ...)` — resource transfer lifecycle
 
 ### Running Tests
 ```bash
@@ -635,10 +645,10 @@ cargo test -p rns-cli
 
 ### Test Counts
 - **rns-crypto**: 65 unit tests + 11 interop tests = 76
-- **rns-core**: 380 unit tests + 12 interop tests + 32 integration tests = 424
-- **rns-net**: 310 unit tests + 2 interop tests = 312
+- **rns-core**: 391 unit tests + 12 interop tests + 32 integration tests = 435
+- **rns-net**: 344 unit tests + 2 interop tests = 346
 - **rns-cli**: 20 lib tests + 10 binary tests = 30
-- **Total**: 842 tests
+- **Total**: 887 tests
 
 ### Build Performance
 The workspace Cargo.toml sets `[profile.dev.package.rns-crypto] opt-level = 2` (and same for test profile) to compile the crypto crate with optimizations even in debug builds. This makes the pure-Rust Ed25519 bigint math ~6x faster, reducing full test suite time from ~8 minutes to ~1 minute.
