@@ -527,17 +527,17 @@ rns-rs/
 │   └── tests/
 │       ├── python_interop.rs   # Rust↔Python announce reception
 │       └── ifac_interop.rs     # IFAC mask/unmask vs Python vectors
-├── rns-cli/                    # Phase 6a: CLI binaries (std-only)
+├── rns-cli/                    # Phase 6a+6b: CLI binaries (std-only)
 │   ├── Cargo.toml              # depends on rns-net, rns-core, rns-crypto, log, env_logger, libc
 │   └── src/
 │       ├── lib.rs              # Re-exports
 │       ├── args.rs             # Simple argument parser (no external deps)
-│       ├── format.rs           # size_str, speed_str, prettytime, prettyhexrep
+│       ├── format.rs           # size_str, speed_str, prettytime, prettyhexrep, prettyfrequency, base32
 │       └── bin/
-│           ├── rnsd.rs         # Daemon: start node from config, signal handling
-│           ├── rnstatus.rs     # Interface stats via RPC connection
-│           ├── rnpath.rs       # Path/rate table management via RPC
-│           └── rnid.rs         # Identity management (standalone, no RPC)
+│           ├── rnsd.rs         # Daemon: start node, signal handling, service mode, exampleconfig
+│           ├── rnstatus.rs     # Interface stats via RPC, sorting, totals, announces, monitor
+│           ├── rnpath.rs       # Path/rate table, blackhole management via RPC
+│           └── rnid.rs         # Identity management (standalone), base32, stdin/stdout
 └── tests/
     ├── generate_vectors.py     # Generates JSON test fixtures from Python RNS
     └── fixtures/
@@ -609,7 +609,7 @@ cargo test -p rns-cli
 
 ### Test Counts
 - **rns-crypto**: 65 unit tests + 11 interop tests = 76
-- **rns-core**: 331 unit tests + 12 interop tests + 32 integration tests = 375
+- **rns-core**: 335 unit tests + 12 interop tests + 32 integration tests = 379
 - **rns-net**: 215 unit tests + 2 interop tests = 217
-- **rns-cli**: 9 unit tests = 9
-- **Total**: 677 tests
+- **rns-cli**: 17 unit tests = 17
+- **Total**: 689 tests
