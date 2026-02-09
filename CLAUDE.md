@@ -492,7 +492,7 @@ rns-rs/
 │       ├── transport_integration.rs # 15 integration tests
 │       ├── link_integration.rs     # 9 link/channel/buffer integration tests
 │       └── resource_integration.rs # 8 resource transfer integration tests
-├── rns-net/                    # Phase 5a-5d+6a: Network node (std-only)
+├── rns-net/                    # Phase 5a-5d+6a+7: Network node (std-only)
 │   ├── Cargo.toml              # depends on rns-core, rns-crypto, log, libc
 │   ├── src/
 │   │   ├── lib.rs              # Public API, re-exports
@@ -508,6 +508,9 @@ rns-rs/
 │   │   ├── pickle.rs           # Minimal pickle codec (proto 2 encode, 2–5 decode)
 │   │   ├── md5.rs              # MD5 + HMAC-MD5 for Python multiprocessing auth
 │   │   ├── rpc.rs              # Python multiprocessing.connection wire protocol
+│   │   ├── announce_cache.rs   # Announce packet caching to disk (Phase 7c)
+│   │   ├── link_manager.rs     # Link lifecycle, request/response, ACL (Phase 7e)
+│   │   ├── management.rs       # Remote management destinations /status /path /list (Phase 7f)
 │   │   ├── driver.rs           # Callbacks, Driver loop, InterfaceStats, query dispatch
 │   │   ├── node.rs             # RnsNode lifecycle + share_instance/RPC config
 │   │   └── interface/
@@ -609,7 +612,7 @@ cargo test -p rns-cli
 
 ### Test Counts
 - **rns-crypto**: 65 unit tests + 11 interop tests = 76
-- **rns-core**: 335 unit tests + 12 interop tests + 32 integration tests = 379
-- **rns-net**: 215 unit tests + 2 interop tests = 217
+- **rns-core**: 380 unit tests + 12 interop tests + 32 integration tests = 424
+- **rns-net**: 254 unit tests + 2 interop tests = 256
 - **rns-cli**: 17 unit tests = 17
-- **Total**: 689 tests
+- **Total**: 773 tests
