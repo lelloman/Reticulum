@@ -492,8 +492,8 @@ rns-rs/
 │       ├── transport_integration.rs # 15 integration tests
 │       ├── link_integration.rs     # 9 link/channel/buffer integration tests
 │       └── resource_integration.rs # 8 resource transfer integration tests
-├── rns-net/                    # Phase 5a-5d+6a+7: Network node (std-only)
-│   ├── Cargo.toml              # depends on rns-core, rns-crypto, log, libc
+├── rns-net/                    # Phase 5a-5d+6a+7+8: Network node (std-only)
+│   ├── Cargo.toml              # depends on rns-core, rns-crypto, log, libc, socket2
 │   ├── src/
 │   │   ├── lib.rs              # Public API, re-exports
 │   │   ├── hdlc.rs             # HDLC escape/unescape/frame + streaming Decoder
@@ -509,8 +509,9 @@ rns-rs/
 │   │   ├── md5.rs              # MD5 + HMAC-MD5 for Python multiprocessing auth
 │   │   ├── rpc.rs              # Python multiprocessing.connection wire protocol
 │   │   ├── announce_cache.rs   # Announce packet caching to disk (Phase 7c)
-│   │   ├── link_manager.rs     # Link lifecycle, request/response, ACL (Phase 7e)
-│   │   ├── management.rs       # Remote management destinations /status /path /list (Phase 7f)
+│   │   ├── link_manager.rs     # Link lifecycle, request/response, resource wiring (Phase 7e+8a)
+│   │   ├── management.rs       # Remote management destinations + announcing (Phase 7f+8c)
+│   │   ├── shared_client.rs    # Shared instance client connection (Phase 8e)
 │   │   ├── driver.rs           # Callbacks, Driver loop, InterfaceStats, query dispatch
 │   │   ├── node.rs             # RnsNode lifecycle + share_instance/RPC config
 │   │   └── interface/
@@ -523,23 +524,26 @@ rns-rs/
 │   │       ├── kiss_iface.rs   # KISS + flow control, TNC config
 │   │       ├── pipe.rs         # Subprocess stdin/stdout + HDLC, auto-respawn
 │   │       ├── rnode.rs        # RNode LoRa radio, multi-sub, flow control
-│   │       └── backbone.rs     # TCP mesh backbone, Linux epoll
+│   │       ├── backbone.rs     # TCP mesh backbone, Linux epoll
+│   │       └── auto.rs         # AutoInterface: IPv6 multicast LAN discovery (Phase 8d)
 │   ├── examples/
 │   │   ├── tcp_connect.rs      # Connect to Python RNS, log announces
 │   │   └── rnsd.rs             # Rust rnsd daemon (config-driven)
 │   └── tests/
 │       ├── python_interop.rs   # Rust↔Python announce reception
 │       └── ifac_interop.rs     # IFAC mask/unmask vs Python vectors
-├── rns-cli/                    # Phase 6a+6b: CLI binaries (std-only)
+├── rns-cli/                    # Phase 6a+6b+8f+8g: CLI binaries (std-only)
 │   ├── Cargo.toml              # depends on rns-net, rns-core, rns-crypto, log, env_logger, libc
 │   └── src/
 │       ├── lib.rs              # Re-exports
 │       ├── args.rs             # Simple argument parser (no external deps)
 │       ├── format.rs           # size_str, speed_str, prettytime, prettyhexrep, prettyfrequency, base32
+│       ├── remote.rs           # Remote management query helper (Phase 8g)
 │       └── bin/
 │           ├── rnsd.rs         # Daemon: start node, signal handling, service mode, exampleconfig
-│           ├── rnstatus.rs     # Interface stats via RPC, sorting, totals, announces, monitor
-│           ├── rnpath.rs       # Path/rate table, blackhole management via RPC
+│           ├── rnstatus.rs     # Interface stats via RPC, sorting, totals, announces, monitor, -R
+│           ├── rnpath.rs       # Path/rate table, blackhole management via RPC, -R
+│           ├── rnprobe.rs      # Path probe / connectivity diagnostics via RPC (Phase 8f)
 │           └── rnid.rs         # Identity management (standalone), base32, stdin/stdout
 └── tests/
     ├── generate_vectors.py     # Generates JSON test fixtures from Python RNS
@@ -583,7 +587,13 @@ rns-rs/
 **rns-net::RnsNode**
 - `from_config(config_path, callbacks)` → read config file, load/create identity, start interfaces
 - `start(config, callbacks)` → connect interfaces, start driver + timer threads
+- `connect_shared(config, callbacks)` → connect as client to running daemon (Phase 8e)
 - `shutdown(self)` → stop driver, wait for thread exit
+- `create_link(dest_hash, dest_sig_pub)` → initiate link to remote destination
+- `identify_on_link(link_id, identity_prv_key)` → identify on established link
+- `send_request(link_id, path, data)` → send request on link
+- `send_resource(link_id, data, metadata)` → send resource transfer on link
+- `send_channel_message(link_id, msgtype, payload)` → send channel message on link
 - Thread model: single Driver thread (owns TransportEngine), per-interface Reader threads, Timer thread
 - All communication via single `mpsc::channel()` of `Event` variants
 
@@ -592,6 +602,19 @@ rns-rs/
 - `on_path_updated(dest_hash, hops)` — path table updated
 - `on_local_delivery(dest_hash, raw, packet_hash)` — packet for local destination
 - `on_interface_up(id)` / `on_interface_down(id)` — interface state changes (default no-op)
+- `on_link_established(link_id, rtt, is_initiator)` / `on_link_closed(link_id)` — link lifecycle
+- `on_remote_identified(link_id, identity_hash)` — remote identity verified on link
+- `on_response(link_id, request_id, data)` — response to a link request
+- `on_channel_message(link_id, msgtype, payload)` — channel message received
+- `on_link_data(link_id, context, data)` — generic link data received
+- `on_resource_received/completed/failed/progress(link_id, ...)` — resource transfer lifecycle
+- `on_link_established(link_id, rtt, is_initiator)` — link became active
+- `on_link_closed(link_id)` — link closed
+- `on_remote_identified(link_id, identity_hash)` — remote identified on link
+- `on_response(link_id, request_id, data)` — response received on link
+- `on_channel_message(link_id, msgtype, payload)` — channel message received
+- `on_link_data(link_id, context, data)` — generic link data received
+- `on_resource_received(link_id, data, metadata)` — resource transfer completed
 
 ### Running Tests
 ```bash
@@ -613,6 +636,9 @@ cargo test -p rns-cli
 ### Test Counts
 - **rns-crypto**: 65 unit tests + 11 interop tests = 76
 - **rns-core**: 380 unit tests + 12 interop tests + 32 integration tests = 424
-- **rns-net**: 254 unit tests + 2 interop tests = 256
-- **rns-cli**: 17 unit tests = 17
-- **Total**: 773 tests
+- **rns-net**: 310 unit tests + 2 interop tests = 312
+- **rns-cli**: 20 lib tests + 10 binary tests = 30
+- **Total**: 842 tests
+
+### Build Performance
+The workspace Cargo.toml sets `[profile.dev.package.rns-crypto] opt-level = 2` (and same for test profile) to compile the crypto crate with optimizations even in debug builds. This makes the pure-Rust Ed25519 bigint math ~6x faster, reducing full test suite time from ~8 minutes to ~1 minute.
