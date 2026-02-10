@@ -497,7 +497,7 @@ rns-rs/
 │   ├── Cargo.toml              # depends on rns-core, rns-crypto, log, libc, socket2
 │   ├── src/
 │   │   ├── lib.rs              # Public API, re-exports
-│   │   ├── destination.rs      # Phase 9b: Destination + AnnouncedIdentity structs
+│   │   ├── destination.rs      # Phase 9b: Destination + AnnouncedIdentity + GROUP encrypt/decrypt
 │   │   ├── hdlc.rs             # HDLC escape/unescape/frame + streaming Decoder
 │   │   ├── kiss.rs             # KISS framing (FEND/FESC) + streaming Decoder
 │   │   ├── rnode_kiss.rs       # RNode KISS commands + streaming RNodeDecoder
@@ -591,6 +591,11 @@ rns-rs/
 - `single_in(app_name, aspects, identity_hash)` → inbound SINGLE destination
 - `single_out(app_name, aspects, recalled)` → outbound SINGLE from AnnouncedIdentity
 - `plain(app_name, aspects)` → unencrypted destination
+- `group(app_name, aspects)` → GROUP destination (symmetric encryption, pre-shared key)
+- `create_keys()` → generate random 64-byte AES-256 symmetric key
+- `load_private_key(key)` → load existing 32 or 64-byte symmetric key
+- `get_private_key()` → retrieve symmetric key bytes
+- `encrypt(plaintext)` / `decrypt(ciphertext)` → Token-based symmetric crypto
 - `set_proof_strategy(strategy)` → builder for ProveAll/ProveApp/ProveNone
 
 **rns-net::RnsNode**
@@ -599,7 +604,7 @@ rns-rs/
 - `connect_shared(config, callbacks)` → connect as client to running daemon (Phase 8e)
 - `shutdown(self)` → stop driver, wait for thread exit
 - `announce(dest, identity, app_data)` → build + broadcast announce packet (Phase 9c)
-- `send_packet(dest, data)` → encrypt (SINGLE) + send, returns PacketHash (Phase 9d)
+- `send_packet(dest, data)` → encrypt (SINGLE/GROUP) or wrap (PLAIN) + send, returns PacketHash (Phase 9d)
 - `register_destination_with_proof(dest, signing_key)` → register + proof strategy (Phase 9d)
 - `request_path(dest_hash)` → send path request to network (Phase 9c)
 - `has_path(dest_hash)` / `hops_to(dest_hash)` → path queries (Phase 9c)
@@ -646,9 +651,9 @@ cargo test -p rns-cli
 ### Test Counts
 - **rns-crypto**: 65 unit tests + 11 interop tests = 76
 - **rns-core**: 391 unit tests + 12 interop tests + 32 integration tests = 435
-- **rns-net**: 344 unit tests + 2 interop tests = 346
+- **rns-net**: 357 unit tests + 2 interop tests = 359
 - **rns-cli**: 20 lib tests + 10 binary tests = 30
-- **Total**: 887 tests
+- **Total**: 900 tests
 
 ### Build Performance
 The workspace Cargo.toml sets `[profile.dev.package.rns-crypto] opt-level = 2` (and same for test profile) to compile the crypto crate with optimizations even in debug builds. This makes the pure-Rust Ed25519 bigint math ~6x faster, reducing full test suite time from ~8 minutes to ~1 minute.
